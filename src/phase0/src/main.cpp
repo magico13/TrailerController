@@ -19,7 +19,9 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <ElegantOTA.h>
+#include <HardwareSerial.h>
 
+#include <lin_stack_esp32.h>
 #include "wifi_creds.h"
 
 const char* ESP32_AP_SSID     = "ESP32-Access-Point";
@@ -29,6 +31,13 @@ bool state = false;
 AsyncWebServer server(80);
 
 unsigned long ota_progress_millis = 0;
+
+// LIN Variables
+const byte ident = 0; // Identification Byte
+byte data_size=8; // length of byte array
+byte data[8]; // byte array for received data
+
+lin_stack_esp32 LIN1(2,ident); // 2 - channel (GPIO 16 & 17), ident - Identification Byte
 
 void flashLED(int count, int delay_ms) {
   digitalWrite(LED_BUILTIN, false);
@@ -113,6 +122,9 @@ void setup(void) {
     setupAccessPoint();
   }
 
+  // Setup LIN
+  LIN1.setSerial();
+
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "Hi! This is ElegantOTA AsyncDemo.");
   });
@@ -131,4 +143,30 @@ void setup(void) {
 
 void loop(void) {
   ElegantOTA.loop();
+
+  // Check LIN bus and print data
+  // Pulled from https://github.com/autobyt-es/ESP32_LIN/blob/master/examples/Sniffer/ESP32_Sniffer.ino
+  byte a = LIN1.readStream(data, data_size);
+  if(a == 1){ // If there was an event on LIN Bus, Traffic was detected. Print data to serial monitor
+     Serial.println("Traffic detected!");
+     Serial.print("Synch Byte: ");
+     Serial.println(data[0], HEX);
+     Serial.print("Ident Byte: ");
+     Serial.println(data[1], HEX);
+     Serial.print("Data Byte1: ");
+     Serial.println(data[2]);
+     Serial.print("Data Byte2: ");
+     Serial.println(data[3]);
+     Serial.print("Data Byte3: ");
+     Serial.println(data[4]);
+     Serial.print("Data Byte4: ");
+     Serial.println(data[5]);
+     Serial.print("Data Byte5: ");
+     Serial.println(data[6]);
+     Serial.print("Check Byte: ");
+     Serial.println(data[7]);
+     Serial.print("\n");
+  }
+
+  // TODO: Use webserver to view data instead of serial monitor
 }
