@@ -20,11 +20,10 @@
 #include <ESPAsyncWebServer.h>
 #include <ElegantOTA.h>
 
-const char* ssid     = "ESP32-Access-Point";
-const char* password = "123456789";
+#include "wifi_creds.h"
 
-// const char* ssid     = "";
-// const char* password = "";
+const char* ESP32_AP_SSID     = "ESP32-Access-Point";
+const char* ESP32_AP_PASSWORD = "123456789";
 
 bool state = false;
 AsyncWebServer server(80);
@@ -71,7 +70,7 @@ void onOTAEnd(bool success) {
 
 void setupAccessPoint() {
   Serial.print("Setting AP...");
-  WiFi.softAP(ssid, password);
+  WiFi.softAP(ESP32_AP_SSID, ESP32_AP_PASSWORD);
 
   IPAddress IP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
@@ -80,7 +79,7 @@ void setupAccessPoint() {
 
 void setupClient() {
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.println("");
 
   // Wait for connection
@@ -94,7 +93,7 @@ void setupClient() {
   digitalWrite(LED_BUILTIN, state);
   Serial.println("");
   Serial.print("Connected to ");
-  Serial.println(ssid);
+  Serial.println(WIFI_SSID);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 }
@@ -107,8 +106,12 @@ void setup(void) {
   Serial.println("Booting");
 
   // Setup WiFi
-  setupAccessPoint();
-  // setupClient();
+  // If WiFi credentials are not provided, start Access Point
+  if (strlen(WIFI_SSID) > 0 && strlen(WIFI_PASSWORD) > 0) {
+    setupClient();
+  } else {
+    setupAccessPoint();
+  }
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "Hi! This is ElegantOTA AsyncDemo.");
