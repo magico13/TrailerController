@@ -56,7 +56,7 @@ class lin_stack_esp32
 		int writeStream(byte data[], byte data_size); // Writing user data to LIN bus
 		int read(byte data[], byte data_size); // read data from LIN bus, checksum and ident validation
 		int readStream(byte data[],byte data_size); // read data from LIN bus
-		int setSerial(); // set up Seril communication for receiving data.
+		void setSerial(); // set up Seril communication for receiving data.
 		int busWakeUp(); // send wakeup frame for waking up all bus participants
 	
 	// Private methods and variables

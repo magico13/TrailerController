@@ -165,7 +165,7 @@ int lin_stack_esp32::writeStream(byte data[], byte data_size){
 
 // READ methods
 // Read LIN traffic and then proces it.
-int lin_stack_esp32::setSerial(){ // Only needed when receiving signals
+void lin_stack_esp32::setSerial(){ // Only needed when receiving signals
 	if(ch==0){ // For LIN1 (Channel 0)
 		Serial.begin(bound_rate); // Configure Serial
 		//PIOA->PIO_PUER = PIO_PA10; // We need software Pull-Up because there is no hardware Pull-Up resistor
@@ -367,10 +367,10 @@ int lin_stack_esp32::busWakeUp()
 }
 
 /* Create the Lin ID parity */
-#define BIT(data,shift) ((ident&(1<<shift))>>shift)
+#define BITSHIFT(data,shift) ((ident&(1<<shift))>>shift)
 byte lin_stack_esp32::calcIdentParity(byte ident)
 {
-  byte p0 = BIT(ident,0) ^ BIT(ident,1) ^ BIT(ident,2) ^ BIT(ident,4);
-  byte p1 = ~(BIT(ident,1) ^ BIT(ident,3) ^ BIT(ident,4) ^ BIT(ident,5));
+  byte p0 = BITSHIFT(ident,0) ^ BITSHIFT(ident,1) ^ BITSHIFT(ident,2) ^ BITSHIFT(ident,4);
+  byte p1 = ~(BITSHIFT(ident,1) ^ BITSHIFT(ident,3) ^ BITSHIFT(ident,4) ^ BITSHIFT(ident,5));
   return (p0 | (p1<<1))<<6;
 }
