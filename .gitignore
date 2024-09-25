@@ -30,4 +30,6 @@
 *.exe
 *.out
 *.app
-*/include/wifi_creds.h
+
+# Custom files
+**/include/wifi_creds.h
