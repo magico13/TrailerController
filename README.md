@@ -4,7 +4,7 @@ An open-source trailer controller emulating a Tesla trailer control module.
 
 The goal of this project is to openly document how to create a controller that plugs into the gray 3-pin connector included on Tesla vehicles, to be able to control a 4-pin US trailer connector without needing to interface with any of the vehicle's other wiring.
 
-The vehicle used for testing is a US-spec, Fremont factory, 2022 Tesla Model 3 LR AWD built November 2021. The vehicle is a HW3, MCU2 (Intel Atom), with a standard 12V lead-acid battery and ultrasonic sensors. Vehicles built starting around December 2021 shipped with a higher voltage lithium ion low-voltage battery (around 15V) and MCU3 (AMD Ryzen) with no ultrasonic sensors, and while this project should hopefully work for them the higher voltage may require some component changes.
+The vehicle used for testing is a US-spec, Fremont factory, 2022 Tesla Model 3 LR AWD built November 2021, which puts it as SOP5. The vehicle is a HW3, MCU2 (Intel Atom), with a standard 12V lead-acid battery and ultrasonic sensors. Vehicles built starting around December 2021 shipped with a higher voltage lithium ion low-voltage battery (around 15V) and MCU3 (AMD Ryzen) with no ultrasonic sensors, and while this project should hopefully work for them the higher voltage may require some component changes.
 
 At the time of writing, this project is intended to be passive, only reading information from the vehicle computers without attempting to send any commands to the vehicle. This is safer from both a security perspective and from the perspective of potentially damaging the vehicle electronics.
 
