@@ -26,4 +26,11 @@ The source code provided in this project is set up to use PlatformIO via Visual 
 
 ## LIN Information
 
-To be determined...
+From looking at the inductive charger LIN bus, we can determine some things that are likely the same between the different buses, though we'll want to verify those assumptions of course.
+
+- LIN checksum version: 2
+- Baudrate: 19,200 bits/s
+- Data length: 2, 4, or 8 bytes
+
+Example trace from the inductive charger LIN bus:
+![IC_LIN example](images/IC_LIN.png)

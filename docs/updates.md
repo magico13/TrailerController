@@ -11,3 +11,9 @@ You may have noticed up there that I mentioned the inductive phone charger LIN a
 For reference, it's on PIN 6 of connector X930F in my model 3. That connector is the one in the bottom rear of the center console, the same one that OBD adapters are usually made to connect to. Pin 7 is conveniently a ground pin. You can disconnect that plug, stick two male jumper wires in, and have access to the LIN bus while sitting comfortably in the back seat of the car. If/when I also need 12V it can also be pulled off that connector, for example pin 15 (big one in the bottom left) looks to be the 12V for the USB ports.
 
 I will likely continue to use that LIN bus for testing until I can reliably read data from the bus, then move to the trailer bus.
+
+## 2024-09-26
+
+While I wait for the USB logic analyzer to arrive I realized that I could probably use the ESP32 itself as a logic analyzer. Using [this project](https://github.com/EUA/ESP32_LogicAnalyzer) with a tweak to the `platformio.ini` file to use `espressif32@4.1` to fix the compatibility with `esp32doit-devkit-v1`, I was able to succesfully read the data from the inductive charger LIN bus, though with the sensors disconnected so there was no response data (ideally I will be able to intercept it while active). That was enough to confirm some details of that LIN bus that will hopefully translate over. I'll update the [LIN bus doc](./LIN-Decoding.md) with some of that info. Additionally the sigrok/PulseView file itself is in the phase0 docs folder, [here](/src/phase0/data/IC_LIN_Trace).
+
+Assuming the setup is the same for the trailer LIN, we at least know the protocol version (2), baud rate (19200), and to expect the amount of data per response to change between 2, 4, and 8 bytes. I think that might be why the code I was using earlier failed since I believe it was assuming the response was always 8 bytes. If I can change that to pick the right number of response bytes, maybe it'll work.
