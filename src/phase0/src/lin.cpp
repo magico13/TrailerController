@@ -39,7 +39,7 @@ short lin::readFrame(byte dataBuffer[], byte pid) {
 }
 
 byte lin::calculateChecksum(byte dataBuffer[], short length) {
-    byte checksum = 0;
+    int checksum = 0;
     for (short i = 1; i < length; i++) { // skip the first byte, it's the sync byte
         checksum += dataBuffer[i];
         if (checksum > 0xFF) {
@@ -48,7 +48,5 @@ byte lin::calculateChecksum(byte dataBuffer[], short length) {
     }
 
     // invert the checksum bits
-    checksum = ~checksum;
-
-    return checksum;
+    return (byte)~checksum;
 }

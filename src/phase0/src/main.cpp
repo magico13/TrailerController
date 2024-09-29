@@ -146,7 +146,7 @@ void loop(void) {
     }
     byte receivedChecksum = data[bytesRead - 1];
     if (calculatedChecksum == receivedChecksum) {
-      Serial.println("OK");
+      Serial.print("OK");
     } else {
       Serial.print("ERR ");
       Serial.print(calculatedChecksum, HEX);
