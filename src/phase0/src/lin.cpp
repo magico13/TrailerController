@@ -46,5 +46,9 @@ byte lin::calculateChecksum(byte dataBuffer[], short length) {
             checksum -= 0xFF;
         }
     }
+
+    // invert the checksum bits
+    checksum = ~checksum;
+
     return checksum;
 }
