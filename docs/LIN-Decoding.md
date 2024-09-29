@@ -129,9 +129,7 @@ REVERSE - MOVING
 - PID: 0x99
 - No data, expecting response
 
-#### 0x29
-This is the driver's side inductive charger.
-
+#### 0x29 - Driver Side Wireless Charger
 - ID: 0x29
 - PID: 0xE9
 - Data: 8 bytes
@@ -156,10 +154,7 @@ Driver IC Charging
 The second byte seems to also be a state identifier: 0 for no device, 1 for present but not charging, 2 for charging.
 
 
-#### 0x2A
-
-This is the passenger side inductive charger.
-
+#### 0x2A - Passenger Side Wireless Charger
 - ID: 0x2A
 - PID: 0x6A
 - Data: 8 bytes
