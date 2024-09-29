@@ -3,9 +3,7 @@
 HardwareSerial linSerial(1);
 
 // Break is 14 sets of 52 us, go lower for safety
-const unsigned long BREAK_THRESHOLD = 728; 
-const int MAX_BYTES = 11;
-int dataIndex = 0;
+const unsigned long BREAK_THRESHOLD = 728;
 unsigned long lastReceivedTime = 0;
 
 void lin::setupSerial(int rxPin) {
@@ -13,8 +11,8 @@ void lin::setupSerial(int rxPin) {
     linSerial.begin(19200, SERIAL_8N1, rxPin); // LIN Serial
 }
 
-int lin::readFrame(byte dataBuffer[], byte pid) {
-    dataIndex = 0;
+short lin::readFrame(byte dataBuffer[], byte pid) {
+    short dataIndex = 0;
     lastReceivedTime = micros();
     while (micros() - lastReceivedTime < BREAK_THRESHOLD) {
         while (linSerial.available() && dataIndex < MAX_BYTES) {
@@ -32,7 +30,21 @@ int lin::readFrame(byte dataBuffer[], byte pid) {
             }
         }
     }
+    if (dataIndex < 2) {
+        return 0; // Return 0 if less than 2 bytes are read
+    }
 
     // Return the count of bytes read
     return dataIndex;
+}
+
+byte lin::calculateChecksum(byte dataBuffer[], short length) {
+    byte checksum = 0;
+    for (short i = 1; i < length; i++) { // skip the first byte, it's the sync byte
+        checksum += dataBuffer[i];
+        if (checksum > 0xFF) {
+            checksum -= 0xFF;
+        }
+    }
+    return checksum;
 }

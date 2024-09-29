@@ -9,7 +9,6 @@
 #include <ElegantOTA.h>
 #include <HardwareSerial.h>
 
-//#include <lin_stack_esp32.h>
 #include "lin.h"
 #include "wifi_creds.h"
 
@@ -30,7 +29,7 @@ unsigned long ota_progress_millis = 0;
 // lin_stack_esp32 LIN1(2,ident); // 2 - channel (GPIO 16 & 17), ident - Identification Byte
 
 lin linStack;
-byte data[11];
+byte data[lin::MAX_BYTES];
 
 void flashLED(int count, int delay_ms) {
   digitalWrite(LED_BUILTIN, false);
@@ -138,50 +137,19 @@ void setup(void) {
 void loop(void) {
   ElegantOTA.loop();
 
-  // Check LIN bus and print data
-  // Pulled from https://github.com/autobyt-es/ESP32_LIN/blob/master/examples/Sniffer/ESP32_Sniffer.ino
-  // byte a = LIN1.readStream(data, data_size+3);
-  // if(a == 1){ // If there was an event on LIN Bus, Traffic was detected. Print data to serial monitor
-  //   Serial.println("Traffic detected!");
-  //   Serial.print("Synch Byte: ");
-  //   Serial.println(data[0], HEX);
-  //   Serial.print("Ident Byte: ");
-  //   Serial.println(data[1], HEX);
-  //   Serial.print("Data Byte1: ");
-  //   Serial.println(data[2]);
-  //   Serial.print("Data Byte2: ");
-  //   Serial.println(data[3]);
-  //   Serial.print("Data Byte3: ");
-  //   Serial.println(data[4]);
-  //   Serial.print("Data Byte4: ");
-  //   Serial.println(data[5]);
-  //   Serial.print("Data Byte5: ");
-  //   Serial.println(data[6]);
-  //   Serial.print("Data Byte6: ");
-  //   Serial.println(data[7]);
-  //   Serial.print("Data Byte7: ");
-  //   Serial.println(data[8]);
-  //   Serial.print("Data Byte8: ");
-  //   Serial.println(data[9]);
-  //   Serial.print("Check Byte: ");
-  //   // The last byte in the array that is non-zero is the checksum byte
-  //   for(int i=10; i>0; i--){
-  //     if(data[i] != 0){
-  //       Serial.println(data[i], HEX);
-  //       Serial.print("Data count: ");
-  //       Serial.println(i+1-3);
-  //       break;
-  //     }
-  //   }
-  //   Serial.print("\n");
-  // }
-
-  int a = linStack.readFrame(data, 0xCF);
-  if (a > 1) {
-    //Serial.println("Frame received!");
-    for (int i = 0; i < a; i++) {
+  int bytesRead = linStack.readFrame(data, 0xCF);
+  if (bytesRead > 2) {
+    byte calculatedChecksum = linStack.calculateChecksum(data, bytesRead - 1);
+    for (int i = 0; i < bytesRead; i++) {
       Serial.print(data[i], HEX);
       Serial.print(" ");
+    }
+    byte receivedChecksum = data[bytesRead - 1];
+    if (calculatedChecksum == receivedChecksum) {
+      Serial.println("OK");
+    } else {
+      Serial.print("ERR ");
+      Serial.print(calculatedChecksum, HEX);
     }
     Serial.println();
   }
