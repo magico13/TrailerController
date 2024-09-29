@@ -26,11 +26,138 @@ The source code provided in this project is set up to use PlatformIO via Visual 
 
 ## LIN Information
 
-From looking at the inductive charger LIN bus, we can determine some things that are likely the same between the different buses, though we'll want to verify those assumptions of course.
+There are some basic settings for the LIN bus that seems to be common between at least the LIN bus for the trailer and the inductive charger:
 
 - LIN checksum version: 2
 - Baudrate: 19,200 bits/s
-- Data length: 2, 4, or 8 bytes
+- Data length: variable
 
 Example trace from the inductive charger LIN bus:
 ![IC_LIN example](images/IC_LIN.png)
+
+### Reading the Lights Data
+
+As you can tell if you look at the raw data below, the key message for the data on which lights are lit is the message with ID `0x0F`. This message has a single byte of data containing flags for the relevant lights.
+
+In least significant bit first ordering (how the data is sent over UART):
+- Bit 1: Left turn signal
+- Bit 2: Right turn signal
+- Bit 3: Headlights
+- Bit 4: Brakes
+- Higher bits: unused? reverse?
+
+Both of the turn signals are also marked as active when the brakes are pressed, so that doesn't need to be handled separately.
+
+This means that mapping the message to the lights on a four-pin connector is just:
+- left/yellow maps to the first bit
+- right/green maps to the second bit
+- taillights/brown maps to the third bit
+
+#### Examples:
+
+- Driving with the headlights on: `00100000` = 0x08
+- Headlights on, turning left: `10100000` = 0x09
+- Slowing down with brakes, headlights off: `11010000` = 0x0A
+
+### LIN Frames
+
+This is a raw list of the different ids and sample data seen for the Trailer LIN bus. Number are hex unless otherwise specified. ID is the actual identifier, PID is the raw Protected Identifier Field including parity bits.
+
+#### 0x0F - Light States
+- ID: 0x0F
+- PID: 0xCF
+
+IDLE
+- Data: 1 byte
+    - 0x00
+- Checksum: 0x30
+
+LEFT TURN
+- Data: 1 byte
+    - 0x01
+- Checksum: 0x2F
+
+RIGHT TURN
+- Data: 1 byte
+    - 0x02
+- Checksum: 0x2E
+
+LIGHTS ON
+- Data: 1 byte
+    - 0x04
+- Checksum: 0x2C
+
+BRAKES
+- Data: 1 byte
+    - 0x0B
+- Checksum: 0x25
+
+DRIVE - HOLD ACTIVE
+- Data: 1 byte
+    - 0x0F
+- Checksum: 0x21
+
+#### 0x10
+- ID: 0x10
+- PID: 0x50
+- No data, expecting response
+
+#### 0x11
+- ID: 0x11
+- PID: 0x11
+- No data, expecting response
+
+#### 0x13
+- ID: 0x13
+- PID: 0xD3
+- Data: 7 bytes
+    - 0x00 (for all bytes)
+- Checksum: 0x2C
+
+#### 0x18
+- ID: 0x18
+- PID: 0xD8
+- No data, expecting response
+
+#### 0x19
+- ID: 0x19
+- PID: 0x99
+- No data, expecting response
+
+#### 0x29
+- ID: 0x29
+- PID: 0xE9
+- Data: 8 bytes
+    - 0x02
+    - 0x00
+    - 0x1C
+    - 0xF3
+    - 0x01
+    - 0x88
+    - 0xFF
+    - 0xFF
+- Checksum: 0x7A
+
+#### 0x2A
+- ID: 0x2A
+- PID: 0x6A
+- Data: 8 bytes
+    - 0x02
+    - 0x00
+    - 0x00
+    - 0x1C
+    - 0xF3
+    - 0x01
+    - 0x88
+    - 0xFE
+- Checksum: 0xFA
+- Data: 8 bytes
+    - 0x03
+    - 0x00
+    - 0x00
+    - 0x1C
+    - 0xF3
+    - 0x01
+    - 0x88
+    - 0xFE
+- Checksum: 0xF9
