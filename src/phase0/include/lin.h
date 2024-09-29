@@ -8,7 +8,7 @@ class lin {
     public:
         const int MAX_BYTES = 11; // Store max of 11 bytes: sync, id, up to 8 data bytes, checksum
         void setupSerial(int rxPin);
-        int readFrame(byte dataBuffer[]);
+        int readFrame(byte dataBuffer[], byte pid = 0);
 };
 
 #endif // LIN_H

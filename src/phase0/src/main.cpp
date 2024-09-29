@@ -176,9 +176,9 @@ void loop(void) {
   //   Serial.print("\n");
   // }
 
-  int a = linStack.readFrame(data);
-  if (a > 0) {
-    Serial.println("Frame received!");
+  int a = linStack.readFrame(data, 0xCF);
+  if (a > 1) {
+    //Serial.println("Frame received!");
     for (int i = 0; i < a; i++) {
       Serial.print(data[i], HEX);
       Serial.print(" ");

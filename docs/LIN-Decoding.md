@@ -35,6 +35,8 @@ There are some basic settings for the LIN bus that seems to be common between at
 Example trace from the inductive charger LIN bus:
 ![IC_LIN example](images/IC_LIN.png)
 
+Further testing indicates that the same data looks to be sent over both LIN buses. The light info for the trailer can be read over the LIN for the inductive charger, which makes debugging much easier since that can be read from within the cabin.
+
 ### Reading the Lights Data
 
 As you can tell if you look at the raw data below, the key message for the data on which lights are lit is the message with ID `0x0F`. This message has a single byte of data containing flags for the relevant lights.
@@ -44,7 +46,9 @@ In least significant bit first ordering (how the data is sent over UART):
 - Bit 2: Right turn signal
 - Bit 3: Headlights
 - Bit 4: Brakes
-- Higher bits: unused? reverse?
+- Bit 5: Unknown
+- Bit 6: Reverse lights
+- Bits 7-8: Unknown
 
 Both of the turn signals are also marked as active when the brakes are pressed, so that doesn't need to be handled separately.
 
@@ -73,29 +77,30 @@ IDLE
 - Checksum: 0x30
 
 LEFT TURN
-- Data: 1 byte
-    - 0x01
+- 0x01
 - Checksum: 0x2F
 
 RIGHT TURN
-- Data: 1 byte
-    - 0x02
+- 0x02
 - Checksum: 0x2E
 
 LIGHTS ON
-- Data: 1 byte
-    - 0x04
+- 0x04
 - Checksum: 0x2C
 
 BRAKES
-- Data: 1 byte
-    - 0x0B
+- 0x0B
 - Checksum: 0x25
 
 DRIVE - HOLD ACTIVE
-- Data: 1 byte
-    - 0x0F
+- 0x0F
 - Checksum: 0x21
+
+REVERSE - HOLD
+- 0x2F
+
+REVERSE - MOVING
+- 0x24
 
 #### 0x10
 - ID: 0x10
@@ -125,6 +130,8 @@ DRIVE - HOLD ACTIVE
 - No data, expecting response
 
 #### 0x29
+This is the driver's side inductive charger.
+
 - ID: 0x29
 - PID: 0xE9
 - Data: 8 bytes
@@ -138,7 +145,21 @@ DRIVE - HOLD ACTIVE
     - 0xFF
 - Checksum: 0x7A
 
+Driver IC Charging
+- The first byte changes from 2 to 3, to 8, 9, and then 0x0A when a device is placed on the driver's side charger, but not the passenger side.
+
+0x02 is idle,
+0x03 is testing for a device,
+0x08 and 0x09 seem to be preparing,
+0x0A is actively charging.
+
+The second byte seems to also be a state identifier: 0 for no device, 1 for present but not charging, 2 for charging.
+
+
 #### 0x2A
+
+This is the passenger side inductive charger.
+
 - ID: 0x2A
 - PID: 0x6A
 - Data: 8 bytes
@@ -151,13 +172,3 @@ DRIVE - HOLD ACTIVE
     - 0x88
     - 0xFE
 - Checksum: 0xFA
-- Data: 8 bytes
-    - 0x03
-    - 0x00
-    - 0x00
-    - 0x1C
-    - 0xF3
-    - 0x01
-    - 0x88
-    - 0xFE
-- Checksum: 0xF9
