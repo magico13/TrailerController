@@ -24,6 +24,10 @@ I am opting for an ESP32 because WiFi capability means I can update the firmware
 
 The source code provided in this project is set up to use PlatformIO via Visual Studio Code, which should make it relatively simple to update and flash on your own hardware.
 
+The circuit diagram for the reader is below, basically just a voltage divider using 47kOhm and 10kOhm resistors to drop the voltage to below 3.3V and into a safe range for the RX2 pin on the ESP32. I ended up logging to serial rather than building out a web server, so power was generally provided by USB rather than the 12V.
+
+![Circuit diagram](./images/reader_circuit.svg)
+
 ## LIN Information
 
 There are some basic settings for the LIN bus that seems to be common between at least the LIN bus for the trailer and the inductive charger:
