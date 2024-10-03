@@ -23,3 +23,7 @@ Assuming the setup is the same for the trailer LIN, we at least know the protoco
 Installed my hitch yesterday and freed the connector for the trailer wiring so that I can easily connect/disconnect from it. Ideally anyone following this will not need to move it and can leave it in the relative safety of the upper part of the bumper on the support beam, but I need to be able to freely and temporarily connect things to it.
 
 With that available I was able to get readings from the LIN bus with the turn signals, brakes, and lights on. Now I just have to analyze the different frames and see what's different in each scenario.
+
+## 2024-10-02
+
+For Phase 1, the prototype controller, I am swapping to a Pi Pico W from the ESP32. I want to experiment with different hardware a bit and there are aspects of the Pico and its production that I prefer. Sadly the nice OTA library I was using doesn't play as nice, though might be able to come back without the async functionality. Also realized the other day that the MOSFETs that I got are better for low-side switching and we need high-side switching, so I got some others I need to do testing with. Annoyingly it looks like I need to use both types to be able to switch it. I have some experience with building circuits and PCBs and such, but not quite the level that would make this project easy for me.
