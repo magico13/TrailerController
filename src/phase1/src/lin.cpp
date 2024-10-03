@@ -5,16 +5,16 @@ const unsigned long BREAK_THRESHOLD = 728;
 unsigned long lastReceivedTime = 0;
 
 void lin::setupSerial() {
-    Serial2.begin(19200, SERIAL_8E1); // LIN bus
+    Serial1.begin(19200); // LIN bus
 }
 
 short lin::readFrame(byte dataBuffer[], byte pid) {
     short dataIndex = 0;
     lastReceivedTime = micros();
     while (micros() - lastReceivedTime < BREAK_THRESHOLD) {
-        while (Serial2.available() && dataIndex < MAX_BYTES) {
+        while (Serial1.available() && dataIndex < MAX_BYTES) {
             // Read the incoming byte
-            dataBuffer[dataIndex++] = Serial2.read();
+            dataBuffer[dataIndex++] = Serial1.read();
             lastReceivedTime = micros(); // Update the last received time
             if (dataBuffer[0] != 0x55) {
                 dataIndex = 0; // Reset the index if the first byte is not 0x55 (sync byte)
