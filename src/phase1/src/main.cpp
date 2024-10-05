@@ -16,11 +16,14 @@ const char* AP_PASSWORD = "123456789";
 const char* OTA_USERNAME = "ota";
 const char* OTA_PASSWORD = "123456789";
 
-bool state = false;
+bool led_state = false;
 WebServer httpServer(80);
 HTTPUpdateServer httpUpdater;
 
 unsigned long ota_progress_millis = 0;
+
+bool pin2_state = false;
+unsigned long last_pin2_toggle = 0;
 
 // LIN Variables
 // const byte ident = 1; // Identification Byte
@@ -55,8 +58,8 @@ void onOTAProgress(size_t current, size_t final) {
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
     Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
-    state = !state;
-    digitalWrite(LED_BUILTIN, state);
+    led_state = !led_state;
+    digitalWrite(LED_BUILTIN, led_state);
   }
 }
 
@@ -87,13 +90,13 @@ void setupClient() {
 
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
-    state = !state;
-    digitalWrite(LED_BUILTIN, state);
+    led_state = !led_state;
+    digitalWrite(LED_BUILTIN, led_state);
     delay(500);
     Serial.print(".");
   }
-  state = true;
-  digitalWrite(LED_BUILTIN, state);
+  led_state = true;
+  digitalWrite(LED_BUILTIN, led_state);
   Serial.println("");
   Serial.print("Connected to ");
   Serial.println(WIFI_SSID);
@@ -103,10 +106,14 @@ void setupClient() {
 
 void setup(void) {
   pinMode(LED_BUILTIN, OUTPUT); 
-  state = true;
-  digitalWrite(LED_BUILTIN, state);
+  led_state = true;
+  digitalWrite(LED_BUILTIN, led_state);
   Serial.begin(115200);
   Serial.println("Booting");
+
+  // set GP2 as an output
+  pinMode(2, OUTPUT);
+  digitalWrite(2, LOW);
 
   // Setup WiFi
   // If WiFi credentials are not provided, start Access Point
@@ -123,29 +130,37 @@ void setup(void) {
   httpServer.begin();
 
   Serial.println("HTTP server started");
-  state = false;
-  digitalWrite(LED_BUILTIN, state);
+  led_state = false;
+  digitalWrite(LED_BUILTIN, led_state);
 }
 
 void loop(void) {
   httpServer.handleClient();
 
-  int bytesRead = linStack.readFrame(data, 0xCF);
-  if (bytesRead > 2) {
-    byte calculatedChecksum = linStack.calculateChecksum(data, bytesRead - 1);
-    for (int i = 0; i < bytesRead; i++) {
-      Serial.print(data[i], HEX);
-      Serial.print(" ");
-    }
-    byte receivedChecksum = data[bytesRead - 1];
-    if (calculatedChecksum == receivedChecksum) {
-      Serial.print("OK");
-    } else {
-      Serial.print("ERR ");
-      Serial.print(calculatedChecksum, HEX);
-    }
-    Serial.println();
+  // every 5 second, flip the status of pin 2
+  if (millis() - last_pin2_toggle > 5000) {
+    pin2_state = !pin2_state;
+    digitalWrite(2, pin2_state);
+    last_pin2_toggle = millis();
+    digitalWrite(LED_BUILTIN, pin2_state);
   }
+
+  // int bytesRead = linStack.readFrame(data, 0xCF);
+  // if (bytesRead > 2) {
+  //   byte calculatedChecksum = linStack.calculateChecksum(data, bytesRead - 1);
+  //   for (int i = 0; i < bytesRead; i++) {
+  //     Serial.print(data[i], HEX);
+  //     Serial.print(" ");
+  //   }
+  //   byte receivedChecksum = data[bytesRead - 1];
+  //   if (calculatedChecksum == receivedChecksum) {
+  //     Serial.print("OK");
+  //   } else {
+  //     Serial.print("ERR ");
+  //     Serial.print(calculatedChecksum, HEX);
+  //   }
+  //   Serial.println();
+  // }
 
   // TODO: Use webserver to view data instead of serial monitor
 }
