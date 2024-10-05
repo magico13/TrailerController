@@ -31,5 +31,23 @@
 *.out
 *.app
 
+# LibrePCB files
+.autosave/
+.backup/
+user/
+*.user.lp
+.lock
+*~
+
+# Files created by operating systems or file managers
+.DS_Store
+Thumbs.db
+
+# Files created by other applications
+*.autosave
+*.swp
+*.tmp
+
+
 # Custom files
 **/include/wifi_creds.h
