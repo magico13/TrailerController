@@ -27,3 +27,7 @@ With that available I was able to get readings from the LIN bus with the turn si
 ## 2024-10-02
 
 For Phase 1, the prototype controller, I am swapping to a Pi Pico W from the ESP32. I want to experiment with different hardware a bit and there are aspects of the Pico and its production that I prefer. Sadly the nice OTA library I was using doesn't play as nice, though might be able to come back without the async functionality. Also realized the other day that the MOSFETs that I got are better for low-side switching and we need high-side switching, so I got some others I need to do testing with. Annoyingly it looks like I need to use both types to be able to switch it. I have some experience with building circuits and PCBs and such, but not quite the level that would make this project easy for me.
+
+## 2024-10-06
+
+Prototype PCB design is finished enough to send off to get the first samples. Fingers crossed I didn't mess anything up too badly, I'll know in about a week if the estimates are to be trusted. With only 1 oz copper the lighting traces might only be good for about 3 amps, I'll have to test one of the boards at high current and see how it behaves. Ideally for a final product I'd double the copper but that increased the cost significantly, not worth it for a prototype where I know I'm only going to drive LEDs and I don't know if the board is even gonna work. Here's hoping I'll have some assembly and testing news in my next update.
