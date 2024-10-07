@@ -1,0 +1,22 @@
+M48
+; #@! TF.GenerationSoftware,LibrePCB,LibrePCB,1.1.0
+; #@! TF.CreationDate,2024-10-06T22:41:27
+; #@! TF.ProjectId,phase1,27a80e89-1002-442c-b00c-c9f2b2e6cdd7,v1
+; #@! TF.Part,Single
+; #@! TF.SameCoordinates
+; #@! TF.FileFunction,NonPlated,1,2,NPTH
+FMAT,2
+METRIC,TZ
+; #@! TA.AperFunction,MechanicalDrill
+T1C3.0
+%
+G90
+G05
+M71
+T1
+X94.615Y59.69
+X3.81Y3.81
+X94.615Y3.81
+X3.81Y59.69
+T0
+M30
