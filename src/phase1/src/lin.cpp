@@ -1,6 +1,6 @@
 #include "lin.h"
 
-// Break is 14 sets of 52 us, go lower for safety
+// Break is 14 sets of 52 us (728)
 const unsigned long BREAK_THRESHOLD = 728;
 unsigned long lastReceivedTime = 0;
 
@@ -11,6 +11,9 @@ void lin::setupSerial() {
 short lin::readFrame(byte dataBuffer[], byte pid) {
     short dataIndex = 0;
     lastReceivedTime = micros();
+    // TODO: this shouldn't busy loop.
+    // We should be able to check for our PID and then throw away the rest of the frame if it's not ours.
+    // We should also eventually update to allow replying to the controller.
     while (micros() - lastReceivedTime < BREAK_THRESHOLD) {
         while (Serial1.available() && dataIndex < MAX_BYTES) {
             // Read the incoming byte

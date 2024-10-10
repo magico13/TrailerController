@@ -10,6 +10,15 @@
 #include "lin.h"
 #include "wifi_creds.h"
 
+#define LIN_FRAME_PID 0xCF
+#define LEFT_PIN 2
+#define RIGHT_PIN 3
+#define TAIL_PIN 4
+
+bool left_state = false;
+bool right_state = false;
+bool tail_state = false;
+
 const char* AP_SSID     = "TCU-Access-Point";
 const char* AP_PASSWORD = "123456789";
 
@@ -22,17 +31,7 @@ HTTPUpdateServer httpUpdater;
 
 unsigned long ota_progress_millis = 0;
 
-bool pin2_state = false;
-unsigned long last_pin2_toggle = 0;
-
 // LIN Variables
-// const byte ident = 1; // Identification Byte
-// const byte data_size=8; // length of byte array
-// const byte frame_size = data_size+3; // length of LIN frame
-// byte data[frame_size]; // byte array for received data
-
-// lin_stack_esp32 LIN1(2,ident); // 2 - channel (GPIO 16 & 17), ident - Identification Byte
-
 lin linStack;
 byte data[lin::MAX_BYTES];
 
@@ -44,33 +43,6 @@ void flashLED(int count, int delay_ms) {
     delay(delay_ms);
     digitalWrite(LED_BUILTIN, false);
     delay(delay_ms);
-  }
-}
-
-void onOTAStart() {
-  // Log when OTA has started
-  Serial.println("OTA update started!");
-  flashLED(3, 100);
-}
-
-void onOTAProgress(size_t current, size_t final) {
-  // Log every 1 second
-  if (millis() - ota_progress_millis > 1000) {
-    ota_progress_millis = millis();
-    Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
-    led_state = !led_state;
-    digitalWrite(LED_BUILTIN, led_state);
-  }
-}
-
-void onOTAEnd(bool success) {
-  // Log when OTA has finished
-  if (success) {
-    Serial.println("OTA update finished successfully!");
-    flashLED(3, 250);
-  } else {
-    Serial.println("There was an error during OTA update!");
-    flashLED(10, 250);
   }
 }
 
@@ -104,16 +76,32 @@ void setupClient() {
   Serial.println(WiFi.localIP());
 }
 
+void processLightLINFrame(byte dataByte) {
+  // First bit is left light, second bit is right light, third bit is tail light
+  // This is a four pin trailer connector, so brakes and reverse do not matter, but are present in the LIN frame
+  // See docs if you need to add support for those
+  left_state = dataByte & 0x01;
+  right_state = dataByte & 0x02;
+  tail_state = dataByte & 0x04;
+  digitalWrite(LEFT_PIN, left_state);
+  digitalWrite(RIGHT_PIN, right_state);
+  digitalWrite(TAIL_PIN, tail_state);
+}
+
 void setup(void) {
+  // set control pins as an output and set them to LOW
+  pinMode(LEFT_PIN, OUTPUT);
+  digitalWrite(LEFT_PIN, LOW);
+  pinMode(RIGHT_PIN, OUTPUT);
+  digitalWrite(RIGHT_PIN, LOW);
+  pinMode(TAIL_PIN, OUTPUT);
+  digitalWrite(TAIL_PIN, LOW);
+
   pinMode(LED_BUILTIN, OUTPUT); 
   led_state = true;
   digitalWrite(LED_BUILTIN, led_state);
   Serial.begin(115200);
   Serial.println("Booting");
-
-  // set GP2 as an output
-  pinMode(2, OUTPUT);
-  digitalWrite(2, LOW);
 
   // Setup WiFi
   // If WiFi credentials are not provided, start Access Point
@@ -137,30 +125,23 @@ void setup(void) {
 void loop(void) {
   httpServer.handleClient();
 
-  // every 5 second, flip the status of pin 2
-  if (millis() - last_pin2_toggle > 5000) {
-    pin2_state = !pin2_state;
-    digitalWrite(2, pin2_state);
-    last_pin2_toggle = millis();
-    digitalWrite(LED_BUILTIN, pin2_state);
+  int bytesRead = linStack.readFrame(data, LIN_FRAME_PID);
+  if (bytesRead > 2) {
+    byte calculatedChecksum = linStack.calculateChecksum(data, bytesRead - 1);
+    for (int i = 0; i < bytesRead; i++) {
+      Serial.print(data[i], HEX);
+      Serial.print(" ");
+    }
+    byte receivedChecksum = data[bytesRead - 1];
+    if (calculatedChecksum == receivedChecksum) {
+      Serial.print("OK");
+      processLightLINFrame(data[2]);
+    } else {
+      Serial.print("ERR ");
+      Serial.print(calculatedChecksum, HEX);
+    }
+    Serial.println();
   }
-
-  // int bytesRead = linStack.readFrame(data, 0xCF);
-  // if (bytesRead > 2) {
-  //   byte calculatedChecksum = linStack.calculateChecksum(data, bytesRead - 1);
-  //   for (int i = 0; i < bytesRead; i++) {
-  //     Serial.print(data[i], HEX);
-  //     Serial.print(" ");
-  //   }
-  //   byte receivedChecksum = data[bytesRead - 1];
-  //   if (calculatedChecksum == receivedChecksum) {
-  //     Serial.print("OK");
-  //   } else {
-  //     Serial.print("ERR ");
-  //     Serial.print(calculatedChecksum, HEX);
-  //   }
-  //   Serial.println();
-  // }
 
   // TODO: Use webserver to view data instead of serial monitor
 }
