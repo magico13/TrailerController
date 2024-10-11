@@ -29,7 +29,7 @@ bool led_state = false;
 WebServer httpServer(80);
 HTTPUpdateServer httpUpdater;
 
-unsigned long ota_progress_millis = 0;
+String latestFrameString = "";
 
 // LIN Variables
 lin linStack;
@@ -88,6 +88,34 @@ void processLightLINFrame(byte dataByte) {
   digitalWrite(TAIL_PIN, tail_state);
 }
 
+void runTestSequence() {
+  flashLED(3, 100);
+  digitalWrite(LEFT_PIN, true);
+  delay(1000);
+  digitalWrite(LEFT_PIN, false);
+  digitalWrite(RIGHT_PIN, true);
+  delay(1000);
+  digitalWrite(RIGHT_PIN, false);
+  digitalWrite(TAIL_PIN, true);
+  delay(1000);
+  digitalWrite(TAIL_PIN, false);
+  flashLED(4, 100);
+}
+
+void handleRoot() {
+  String html = "<html><body>";
+  html += "<h1>Latest Data Frame: " + latestFrameString + "</h1>";
+  html += "<button onclick=\"location.href='/runTest'\">Run Test Sequence</button>";
+  html += "<button onclick=\"location.href='/update'\">Firmware Update</button>";
+  html += "</body></html>";
+  httpServer.send(200, "text/html", html);
+}
+
+void handleRunTest() {
+  runTestSequence();
+  httpServer.send(200, "text/html", "Test sequence executed.");
+}
+
 void setup(void) {
   // set control pins as an output and set them to LOW
   pinMode(LEFT_PIN, OUTPUT);
@@ -115,6 +143,8 @@ void setup(void) {
   linStack.setupSerial();
 
   httpUpdater.setup(&httpServer, OTA_USERNAME, OTA_PASSWORD);
+  httpServer.on("/", handleRoot);
+  httpServer.on("/runTest", handleRunTest);
   httpServer.begin();
 
   Serial.println("HTTP server started");
@@ -141,7 +171,9 @@ void loop(void) {
       Serial.print(calculatedChecksum, HEX);
     }
     Serial.println();
+    latestFrameString = "";
+    for (int i = 0; i < bytesRead; i++) {
+      latestFrameString += "0x" + String(data[i], HEX) + " ";
+    }
   }
-
-  // TODO: Use webserver to view data instead of serial monitor
 }
