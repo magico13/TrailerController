@@ -11,9 +11,9 @@
 #include "wifi_creds.h"
 
 #define LIN_FRAME_PID 0xCF
-#define LEFT_PIN 2
-#define RIGHT_PIN 3
-#define TAIL_PIN 4
+#define TAIL_PIN 2
+#define LEFT_PIN 3
+#define RIGHT_PIN 4
 
 bool left_state = false;
 bool right_state = false;
