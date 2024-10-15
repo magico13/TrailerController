@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #1f1f1f;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #333333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Latest Data Frame: {lin_frame}</h1>
+    <button onclick="location.href='/runTest'">Run Test Sequence</button>
+    <button onclick="location.href='/update'">Firmware Update</button>
+</body>
+</html>

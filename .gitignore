@@ -51,3 +51,4 @@ Thumbs.db
 
 # Custom files
 **/include/wifi_creds.h
+**/data/config/wifi.txt

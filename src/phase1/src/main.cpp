@@ -1,14 +1,14 @@
 /*
- * Provides a base for an ESP32 LIN sniffer with OTA updates.
- * Based on the ElegantOTA example for OTA updates.
+ * Pico W-based Tesla trailer controller unit.
+ * Mike Marvin (magico13)
 */
 
 #include <WiFi.h>
 #include <WebServer.h>
 #include <HTTPUpdateServer.h>
+#include <LittleFS.h>
 
 #include "lin.h"
-#include "wifi_creds.h"
 
 #define LIN_FRAME_PID 0xCF
 #define TAIL_PIN 2
@@ -30,6 +30,7 @@ WebServer httpServer(80);
 HTTPUpdateServer httpUpdater;
 
 String latestFrameString = "";
+bool lfsReady = false;
 
 // LIN Variables
 lin linStack;
@@ -46,34 +47,49 @@ void flashLED(int count, int delay_ms) {
   }
 }
 
-void setupAccessPoint() {
-  Serial.print("Setting AP...");
-  WiFi.softAP(AP_SSID, AP_PASSWORD);
+void setupAccessPoint(char* ssid, char* password) {
+  if (strlen(ssid) == 0) {
+    ssid = (char*)AP_SSID;
+  }
+  if (strlen(password) == 0) {
+    password = (char*)AP_PASSWORD;
+  }
+  Serial.print("Starting AP with SSID: ");
+  Serial.println(ssid);
+  WiFi.softAP(ssid, password);
 
   IPAddress IP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(IP);
 }
 
-void setupClient() {
+bool setupClient(char* ssid, char* password, int timeout = 30) {
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(ssid, password);
   Serial.println("");
 
-  // Wait for connection
+  // Wait for connection, with timeout
+  unsigned long timeoutMs = millis() + (timeout * 1000);
   while (WiFi.status() != WL_CONNECTED) {
     led_state = !led_state;
     digitalWrite(LED_BUILTIN, led_state);
     delay(500);
     Serial.print(".");
+    if (millis() > timeoutMs) {
+      Serial.println("Failed to connect to WiFi");
+      return false;
+    }
   }
   led_state = true;
   digitalWrite(LED_BUILTIN, led_state);
   Serial.println("");
   Serial.print("Connected to ");
-  Serial.println(WIFI_SSID);
+  Serial.println(ssid);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+  return true;
 }
 
 void processLightLINFrame(byte dataByte) {
@@ -103,27 +119,38 @@ void runTestSequence() {
 }
 
 void handleRoot() {
-  String html = "<html><body>";
-  html += "<h1>Latest Data Frame: " + latestFrameString + "</h1>";
-  html += "<button onclick=\"location.href='/runTest'\">Run Test Sequence</button>";
-  html += "<button onclick=\"location.href='/update'\">Firmware Update</button>";
-  html += "</body></html>";
+  // open index.html from /web folder
+  File file = LittleFS.open("/web/index.html", "r");
+  if (!file) {
+    httpServer.send(404, "text/plain", "File not found");
+    return;
+  }
+  // replace placeholders in the HTML file
+  String html = file.readString();
+  html.replace("{lin_frame}", latestFrameString);
   httpServer.send(200, "text/html", html);
 }
 
 void handleRunTest() {
+  // open runTest.html from /web folder
+  File file = LittleFS.open("/web/runTest.html", "r");
+  if (!file) {
+    httpServer.send(404, "text/plain", "File not found");
+    return;
+  }
+  httpServer.streamFile(file, "text/html");
+
   runTestSequence();
-  httpServer.send(200, "text/html", "Test sequence executed.");
 }
 
 void setup(void) {
   // set control pins as an output and set them to LOW
   pinMode(LEFT_PIN, OUTPUT);
-  digitalWrite(LEFT_PIN, LOW);
   pinMode(RIGHT_PIN, OUTPUT);
-  digitalWrite(RIGHT_PIN, LOW);
   pinMode(TAIL_PIN, OUTPUT);
-  digitalWrite(TAIL_PIN, LOW);
+  digitalWrite(LEFT_PIN, false);
+  digitalWrite(RIGHT_PIN, false);
+  digitalWrite(TAIL_PIN, false);
 
   pinMode(LED_BUILTIN, OUTPUT); 
   led_state = true;
@@ -131,18 +158,70 @@ void setup(void) {
   Serial.begin(115200);
   Serial.println("Booting");
 
+  // Setup LittleFS
+  lfsReady = LittleFS.begin();
+  if (!lfsReady) {
+    Serial.println("An Error has occurred while mounting LittleFS");
+  }
+
+  // Load configuration
+  char wifiSSID[32];
+  char wifiPassword[32];
+  char apSSID[32];
+  char apPassword[32];
+  String otaUsername;
+  String otaPassword;
+  if (lfsReady) {
+    File wifiConfig = LittleFS.open("/config/wifi.txt", "r");
+    if (wifiConfig) {
+      int len = wifiConfig.readBytesUntil('\n', wifiSSID, 31);
+      wifiSSID[len] = '\0'; // Null-terminate the string
+      len = wifiConfig.readBytesUntil('\n', wifiPassword, 31);
+      wifiPassword[len] = '\0'; // Null-terminate the string
+      wifiConfig.close();
+    }
+
+    File apConfig = LittleFS.open("/config/ap.txt", "r");
+    if (apConfig) {
+      int len = apConfig.readBytesUntil('\n', apSSID, 31);
+      apSSID[len] = '\0'; // Null-terminate the string
+      len = apConfig.readBytesUntil('\n', apPassword, 31);
+      apPassword[len] = '\0'; // Null-terminate the string
+      apConfig.close();
+    }
+
+    File otaConfig = LittleFS.open("/config/ota.txt", "r");
+    if (otaConfig) {
+      otaConfig.readStringUntil('\n');
+      otaConfig.readStringUntil('\n');
+      otaConfig.close();
+    }
+  }
+
   // Setup WiFi
-  // If WiFi credentials are not provided, start Access Point
-  if (strlen(WIFI_SSID) > 0 && strlen(WIFI_PASSWORD) > 0) {
-    setupClient();
-  } else {
-    setupAccessPoint();
+  bool wifiConnected = false;
+  if (strlen(wifiSSID) > 0 && strlen(wifiPassword) > 0) {
+    wifiConnected = setupClient(wifiSSID, wifiPassword);
+  }
+
+  if (!wifiConnected) {
+    // Fallback to AP mode if WiFi fails/has not been configured
+    setupAccessPoint(apSSID, apPassword);
   }
 
   // Setup LIN
   linStack.setupSerial();
 
-  httpUpdater.setup(&httpServer, OTA_USERNAME, OTA_PASSWORD);
+  // Setup OTA
+  if (otaUsername.length() == 0) {
+    otaUsername = OTA_USERNAME;
+  }
+  if (otaPassword.length() == 0) {
+    otaPassword = OTA_PASSWORD;
+  }
+  httpUpdater.setup(&httpServer, otaUsername, otaPassword);
+
+  // Setup HTTP server
   httpServer.on("/", handleRoot);
   httpServer.on("/runTest", handleRunTest);
   httpServer.begin();
