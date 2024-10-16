@@ -35,8 +35,16 @@
     </style>
 </head>
 <body>
-    <h1>Latest Data Frame: {lin_frame}</h1>
+    <h1>Tesla Trailer Control Unit</h1>
+    <p>
+        Left Turn Signal: {left_turn} <br>
+        Right Turn Signal: {right_turn} <br>
+        Tail Lights: {tail_lights} <br>
+        Latest Data Frame: {lin_frame}
+    </p>
+    <button onclick="location.href='/'">Refresh Data</button>
     <button onclick="location.href='/runTest'">Run Test Sequence</button>
+    <button onclick="location.href='/settings'">Update Settings</button>
     <button onclick="location.href='/update'">Firmware Update</button>
 </body>
 </html>

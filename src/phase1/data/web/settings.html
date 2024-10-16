@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h2 {
+            margin-bottom: 20px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        label, input {
+            margin-bottom: 10px;
+        }
+        input[type="submit"] {
+            background-color: #1f1f1f;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        input[type="submit"]:hover {
+            background-color: #333333;
+        }
+        button {
+            background-color: #1f1f1f;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #333333;
+        }
+    </style>
+</head>
+<body>
+    <h2>Update Settings</h2>
+    <form action="/update_settings" method="post">
+        <label for="wifi_ssid">WiFi SSID:</label>
+        <input type="text" id="wifi_ssid" name="wifi_ssid">
+
+        <label for="wifi_password">WiFi Password:</label>
+        <input type="password" id="wifi_password" name="wifi_password">
+
+        <label for="ap_ssid">Access Point SSID:</label>
+        <input type="text" id="ap_ssid" name="ap_ssid" required>
+
+        <label for="ap_password">Access Point Password:</label>
+        <input type="password" id="ap_password" name="ap_password" required>
+
+        <label for="ota_username">OTA Username:</label>
+        <input type="text" id="ota_username" name="ota_username" required>
+
+        <label for="ota_password">OTA Password:</label>
+        <input type="password" id="ota_password" name="ota_password" required>
+
+        <input type="submit" value="Update Settings">
+    </form>
+    <button onclick="location.href='/'">Return</button>
+</body>
+</html>

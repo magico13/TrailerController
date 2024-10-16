@@ -127,11 +127,14 @@ void handleRoot() {
   }
   // replace placeholders in the HTML file
   String html = file.readString();
+  html.replace("{left_turn}", left_state ? "ON" : "OFF");
+  html.replace("{right_turn}", right_state ? "ON" : "OFF");
+  html.replace("{tail_lights}", tail_state ? "ON" : "OFF");
   html.replace("{lin_frame}", latestFrameString);
   httpServer.send(200, "text/html", html);
 }
 
-void handleRunTest() {
+void handleRunTestPage() {
   // open runTest.html from /web folder
   File file = LittleFS.open("/web/runTest.html", "r");
   if (!file) {
@@ -141,6 +144,16 @@ void handleRunTest() {
   httpServer.streamFile(file, "text/html");
 
   runTestSequence();
+}
+
+void handleSettingsPage() {
+  // open settings.html from /web folder
+  File file = LittleFS.open("/web/settings.html", "r");
+  if (!file) {
+    httpServer.send(404, "text/plain", "File not found");
+    return;
+  }
+  httpServer.streamFile(file, "text/html");
 }
 
 void setup(void) {
@@ -223,7 +236,8 @@ void setup(void) {
 
   // Setup HTTP server
   httpServer.on("/", handleRoot);
-  httpServer.on("/runTest", handleRunTest);
+  httpServer.on("/runTest", handleRunTestPage);
+  httpServer.on("/settings", handleSettingsPage);
   httpServer.begin();
 
   Serial.println("HTTP server started");
