@@ -92,6 +92,14 @@ bool setupClient(char* ssid, char* password, int timeout = 30) {
   return true;
 }
 
+float getOnboardTemperature() {
+  // Get the temperature in Celsius
+  float temperature_celsius = analogReadTemp();
+  
+  // Convert to Fahrenheit
+  return temperature_celsius * 9.0 / 5.0 + 32.0;
+}
+
 void processLightLINFrame(byte dataByte) {
   // First bit is left light, second bit is right light, third bit is tail light
   // This is a four pin trailer connector, so brakes and reverse do not matter, but are present in the LIN frame
@@ -131,6 +139,7 @@ void handleRoot() {
   html.replace("{right_turn}", right_state ? "ON" : "OFF");
   html.replace("{tail_lights}", tail_state ? "ON" : "OFF");
   html.replace("{lin_frame}", latestFrameString);
+  html.replace("{tcu_temp}", String(getOnboardTemperature()));
   httpServer.send(200, "text/html", html);
 }
 
