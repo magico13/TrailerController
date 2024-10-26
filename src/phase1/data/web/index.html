@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    {auto_refresh}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Index</title>
@@ -23,11 +24,12 @@
             background-color: #1f1f1f;
             color: #ffffff;
             border: none;
-            padding: 10px 20px;
-            margin: 10px;
+            padding: 10px 10px;
+            margin: 5px;
             cursor: pointer;
             font-size: 16px;
             border-radius: 5px;
+            width: 200px;
         }
         button:hover {
             background-color: #333333;
@@ -36,16 +38,17 @@
 </head>
 <body>
     <h1>Tesla Trailer Control Unit</h1>
+    <h2>Status: {output_status}</h2>
+    <h2>{active_lights}</h2>
     <p>
-        Left Turn Signal: {left_turn} <br>
-        Right Turn Signal: {right_turn} <br>
-        Tail Lights: {tail_lights} <br>
         TCU Temperature: {tcu_temp} F <br>
         Latest Data Frame: {lin_frame}
     </p>
     <button onclick="location.href='/'">Refresh Data</button>
+    <button onclick="location.href='/toggleOutput'">Toggle Active</button>
     <button onclick="location.href='/runTest'">Run Test Sequence</button>
     <button onclick="location.href='/settings'">Update Settings</button>
     <button onclick="location.href='/update'">Firmware Update</button>
+    <button onclick="location.href='/autoRefresh'">Toggle AutoRefresh</button>
 </body>
 </html>

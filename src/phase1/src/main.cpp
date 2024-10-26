@@ -15,6 +15,11 @@
 #define LEFT_PIN 3
 #define RIGHT_PIN 4
 
+const char* left_arrow_icon = "🡄";
+const char* right_arrow_icon = "🡆";
+const char* headlight_icon = "💡";
+
+bool output_enabled = false;
 bool left_state = false;
 bool right_state = false;
 bool tail_state = false;
@@ -31,6 +36,7 @@ HTTPUpdateServer httpUpdater;
 
 String latestFrameString = "";
 bool lfsReady = false;
+bool autoRefresh = false;
 
 // LIN Variables
 lin linStack;
@@ -100,6 +106,34 @@ float getOnboardTemperature() {
   return temperature_celsius * 9.0 / 5.0 + 32.0;
 }
 
+void setLightState(int pin, bool state) {
+  if (output_enabled) {
+    digitalWrite(pin, state);
+  }
+}
+
+void toggleOutputEnabled() {
+  output_enabled = !output_enabled;
+  // if filesystem is ready, set the state in a file so we can read it on boot
+  if (lfsReady) {
+    File file = LittleFS.open("/config/output_enabled.txt", "w");
+    if (file) {
+      file.println(output_enabled ? "1" : "0");
+      file.close();
+    }
+  }
+
+  if (!output_enabled) {
+    // If we're disabling the output, turn off all the lights
+    digitalWrite(LEFT_PIN, false);
+    digitalWrite(RIGHT_PIN, false);
+    digitalWrite(TAIL_PIN, false);
+  }
+
+  Serial.print("Output enabled: ");
+  Serial.println(output_enabled);
+}
+
 void processLightLINFrame(byte dataByte) {
   // First bit is left light, second bit is right light, third bit is tail light
   // This is a four pin trailer connector, so brakes and reverse do not matter, but are present in the LIN frame
@@ -107,13 +141,17 @@ void processLightLINFrame(byte dataByte) {
   left_state = dataByte & 0x01;
   right_state = dataByte & 0x02;
   tail_state = dataByte & 0x04;
-  digitalWrite(LEFT_PIN, left_state);
-  digitalWrite(RIGHT_PIN, right_state);
-  digitalWrite(TAIL_PIN, tail_state);
+  setLightState(LEFT_PIN, left_state);
+  setLightState(RIGHT_PIN, right_state);
+  setLightState(TAIL_PIN, tail_state);
 }
 
 void runTestSequence() {
-  flashLED(3, 100);
+  // Set all lights to false
+  digitalWrite(LEFT_PIN, false);
+  digitalWrite(RIGHT_PIN, false);
+  digitalWrite(TAIL_PIN, false);
+
   digitalWrite(LEFT_PIN, true);
   delay(1000);
   digitalWrite(LEFT_PIN, false);
@@ -135,9 +173,20 @@ void handleRoot() {
   }
   // replace placeholders in the HTML file
   String html = file.readString();
-  html.replace("{left_turn}", left_state ? "ON" : "OFF");
-  html.replace("{right_turn}", right_state ? "ON" : "OFF");
-  html.replace("{tail_lights}", tail_state ? "ON" : "OFF");
+  String activeLights = "";
+  if (left_state) {
+    activeLights += left_arrow_icon; // Left arrow
+  }
+  if (tail_state) {
+    activeLights += headlight_icon; // Light bulb
+  }
+  if (right_state) {
+    activeLights += right_arrow_icon; // Right arrow
+  }
+  html.replace("{active_lights}", activeLights);
+
+  html.replace("{auto_refresh}", autoRefresh ? "<meta http-equiv=\"refresh\" content=\"1\">" : "");
+  html.replace("{output_status}", output_enabled ? "Active" : "Disabled");
   html.replace("{lin_frame}", latestFrameString);
   html.replace("{tcu_temp}", String(getOnboardTemperature()));
   httpServer.send(200, "text/html", html);
@@ -163,6 +212,20 @@ void handleSettingsPage() {
     return;
   }
   httpServer.streamFile(file, "text/html");
+}
+
+void handleToggleOutputPage() {
+  toggleOutputEnabled();
+  // redirect to the main page
+  httpServer.sendHeader("Location", "/",true);
+  httpServer.send(302, "text/plain", "");
+}
+
+void handleToggleAutoRefresh() {
+  autoRefresh = !autoRefresh;
+  // redirect to the main page
+  httpServer.sendHeader("Location", "/",true);
+  httpServer.send(302, "text/plain", "");
 }
 
 void setup(void) {
@@ -218,6 +281,16 @@ void setup(void) {
       otaConfig.readStringUntil('\n');
       otaConfig.close();
     }
+
+    // If we were active before, we should stay active until disabled
+    // We might reboot just because the doors are all closed in park
+    // So we should remember the state
+    File outputConfig = LittleFS.open("/config/output_enabled.txt", "r");
+    if (outputConfig) {
+      String outputEnabled = outputConfig.readStringUntil('\n');
+      output_enabled = outputEnabled.toInt();
+      outputConfig.close();
+    }
   }
 
   // Setup WiFi
@@ -247,6 +320,8 @@ void setup(void) {
   httpServer.on("/", handleRoot);
   httpServer.on("/runTest", handleRunTestPage);
   httpServer.on("/settings", handleSettingsPage);
+  httpServer.on("/toggleOutput", handleToggleOutputPage);
+  httpServer.on("/autoRefresh", handleToggleAutoRefresh);
   httpServer.begin();
 
   Serial.println("HTTP server started");
