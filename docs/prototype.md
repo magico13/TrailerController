@@ -51,10 +51,25 @@ If you want to build your own copy of one of these boards, here are the material
 | Name                                                      | Quantity | Link                                                | Notes                                                                                                                                                                 |
 | --------------------------------------------------------- | -------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | M3 Heat-Set Inserts                                       | 10       | https://www.amazon.com/dp/B0CS6VZYL8                | 4 for the PCB, 6 for the lid                                                                                                                                          |
-| M3 bolts                                                  | 10       | generic                                             | Mine were 10mm so that's what I designed around, but they are WAY too long. Get shorter ones, like 5mm. I like hex caps personally.                               |
+| M3 bolts                                                  | 10       | generic                                             | Mine were 10mm so that's what I designed around, but they are WAY too long. Get shorter ones, like 5mm. I like hex caps personally.                                   |
 | Trailer Wire Harness                                      | 1        | https://www.amazon.com/dp/B0CM3Q5XL8                | The hole in the side is designed to fit the shielding of this pretty tightly. Others may work just as well.                                                           |
 | Trailer Wire Tester                                       | 1        | https://www.amazon.com/dp/B07RT9CN3W                | Purely optional, nice for bench testing or if you don't have a trailer to test with.                                                                                  |
 | Sumitomo 6188-0129 connector (with wire seals and blades) | 1        | https://www.corsa-technic.com/item.php?item_id=1846 | See [X041.md](/docs/X041.md) for more details.                                                                                                                        |
 | 12 gauge wire                                             | 3        | generic                                             | I had 12 gauge on-hand in red/black/green so that's what I used and what the holes are sized for.                                                                     |
 | Wire ferrules                                             | 3 or 7   | https://www.amazon.com/gp/product/B07WRQN45C        | These are generally recommended when you're using terminal blocks and stranded wire, but not strictly required.                                                       |
 | 10-amp In-line Automotive Fuse                            | 1        | https://www.amazon.com/gp/product/B01E5MM63C        | I've had this set for a while. A fuse is not strictly required but highly recommended. Might be tricky to replace if you tuck the TCU on top of the aluminum support. |
+
+## Potential Improvements
+
+In no particular order:
+
+- Add a diode between the output of the 3V3 regulator and Pico to prevent backfeed when USB plugged in.
+- Add smoothing capacitors across power lines.
+- Shorten the height of the enclosure by bending the MOSFETs (or SMD components).
+- Better MOSFET choice(s).
+- Resettable fuse if device placed out of reach (ie on the support beam).
+- Automatically detect trailer connection instead of having to enable via web page.
+- New PCB with surface mount components and much smaller size (ie Phase 2).
+  - Potentially fully custom RP2040 setup, but would increase the complexity significantly.
+- Different regulator. Either a basic linear one or otherwise put the power components on the PCB.
+- Use TJA1020 or similar to send data back to the car.
