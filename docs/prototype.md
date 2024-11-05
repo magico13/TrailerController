@@ -27,6 +27,8 @@ The enclosure was designed in OnShape. I tried to learn FreeCAD and it was too f
 
 https://cad.onshape.com/documents/38c75cc318c0ba98099f4117/w/3ef348a47c70d4d10d24442a/e/2bfd670c77f872a4c310e10b?renderMode=0&uiState=672972c0c370e522f0c73bde
 
+![Enclosure](/docs/images/prototype/prototype_enclosure.png)
+
 ## Bill of Materials
 
 If you want to build your own copy of one of these boards, here are the materials I used.
@@ -49,7 +51,7 @@ If you want to build your own copy of one of these boards, here are the material
 | Name                                                      | Quantity | Link                                                | Notes                                                                                                                                                                 |
 | --------------------------------------------------------- | -------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | M3 Heat-Set Inserts                                       | 10       | https://www.amazon.com/dp/B0CS6VZYL8                | 4 for the PCB, 6 for the lid                                                                                                                                          |
-| M3 bolts                                                  | 10       | generic                                             | Mine were 6mm so that's what I designed around, but they are WAY too long. Get shorter ones, like 3 or 4mm. I like hex caps personally.                               |
+| M3 bolts                                                  | 10       | generic                                             | Mine were 10mm so that's what I designed around, but they are WAY too long. Get shorter ones, like 5mm. I like hex caps personally.                               |
 | Trailer Wire Harness                                      | 1        | https://www.amazon.com/dp/B0CM3Q5XL8                | The hole in the side is designed to fit the shielding of this pretty tightly. Others may work just as well.                                                           |
 | Trailer Wire Tester                                       | 1        | https://www.amazon.com/dp/B07RT9CN3W                | Purely optional, nice for bench testing or if you don't have a trailer to test with.                                                                                  |
 | Sumitomo 6188-0129 connector (with wire seals and blades) | 1        | https://www.corsa-technic.com/item.php?item_id=1846 | See [X041.md](/docs/X041.md) for more details.                                                                                                                        |

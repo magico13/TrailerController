@@ -8,6 +8,13 @@ The vehicle used for testing is a US-spec, Fremont factory, 2022 Tesla Model 3 L
 
 At the time of writing, this project is intended to be passive, only reading information from the vehicle computers without attempting to send any commands to the vehicle. This is safer from both a security perspective and from the perspective of potentially damaging the vehicle electronics.
 
+
+## Working Prototype
+
+There is a working prototype with design files available in the [prototype.md](/docs/prototype.md) doc. Code for the prototype is available in the `/src/phase1` folder.
+
+![Prototype Image](/docs/images/prototype/prototype2.jpg)
+
 ## Motivation
 
 Currently it is difficult or impossible to find documentation of how to interface with the Tesla trailer wiring to get a standard 4-pin connector. In Europe, the "gray connector" (as it's often referred to online, see [teslamotorsclub forum](https://teslamotorsclub.com/tmc/threads/model-3-tow-hitch-installation-ecohitch-and-near-factory-wiring.323758/)) connects to the Trailer Control Unit which interprets the signals from the vehicle's computer and adapts to the standard [European 13 pin connector](https://en.wikipedia.org/wiki/ISO_standards_for_trailer_connectors#13-pin_trailer_connector_(ISO_11446)). In the US the controller is missing but the wiring up to it is present (as of 2019), terminating in the gray connector with id `X041` in the Tesla service manual.
