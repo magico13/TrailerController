@@ -1,6 +1,6 @@
 /*
  * Pico W-based Tesla trailer controller unit.
- * Mike Marvin (magico13)
+ * 2024-2025 Mike Marvin (magico13)
 */
 
 #include <WiFi.h>
@@ -15,8 +15,8 @@
 #define LEFT_PIN 3
 #define RIGHT_PIN 4
 
-const char* left_arrow_icon = "🡄";
-const char* right_arrow_icon = "🡆";
+const char* left_arrow_icon = "◄";
+const char* right_arrow_icon = "►";
 const char* headlight_icon = "💡";
 
 bool output_enabled = false;
@@ -29,6 +29,14 @@ const char* AP_PASSWORD = "123456789";
 
 const char* OTA_USERNAME = "ota";
 const char* OTA_PASSWORD = "123456789";
+
+String wifiSSID;
+String wifiPassword;
+int wifiTimeout = 30;
+String apSSID;
+String apPassword;
+String otaUsername;
+String otaPassword;
 
 bool led_state = false;
 WebServer httpServer(80);
@@ -69,11 +77,16 @@ void setupAccessPoint(char* ssid, char* password) {
   Serial.println(IP);
 }
 
-bool setupClient(char* ssid, char* password, int timeout = 30) {
+bool setupClient(char* ssid, char* password, int timeout) {
   Serial.print("Connecting to ");
   Serial.println(ssid);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  //if password provided, use it, otherwise assume open network
+  if (strlen(password) > 0) {
+    WiFi.begin(ssid, password);
+  } else {
+    WiFi.begin(ssid);
+  }
   Serial.println("");
 
   // Wait for connection, with timeout
@@ -84,7 +97,11 @@ bool setupClient(char* ssid, char* password, int timeout = 30) {
     delay(500);
     Serial.print(".");
     if (millis() > timeoutMs) {
-      Serial.println("Failed to connect to WiFi");
+      Serial.print("Failed to connect to WiFi with SSID '");
+      Serial.print(ssid);
+      Serial.print("' pass '");
+      Serial.print(password);
+      Serial.println("'");
       return false;
     }
   }
@@ -211,7 +228,93 @@ void handleSettingsPage() {
     httpServer.send(404, "text/plain", "File not found");
     return;
   }
-  httpServer.streamFile(file, "text/html");
+  String html = file.readString();
+  html.replace("{current_wifi_ssid}", wifiSSID);
+  html.replace("{current_wifi_password}", wifiPassword);
+  html.replace("{current_wifi_timeout}", String(wifiTimeout));
+  html.replace("{current_ap_ssid}", apSSID);
+  html.replace("{current_ap_password}", apPassword);
+  html.replace("{current_ota_username}", otaUsername);
+  httpServer.send(200, "text/html", html);
+}
+
+void handleUpdateSettings() {
+  // check the ota password and verify it is the same as the current one, 403 if not
+  // write to serial what values we got for the ota password
+  if (!httpServer.hasArg("ota_password_current") || httpServer.arg("ota_password_current") != otaPassword) {
+    Serial.println("Invalid OTA password");
+    httpServer.send(403, "text/plain", "Invalid OTA password");
+    return;
+  }
+  Serial.println("Valid OTA password, updating settings...");
+  
+  // We do allow nulling out the wifi settings, to always use AP mode
+  String newWifiSSID = "";
+  if (httpServer.hasArg("wifi_ssid")) 
+    newWifiSSID = httpServer.arg("wifi_ssid");
+  String newWifiPassword = "";
+  if (httpServer.hasArg("wifi_password")) 
+    newWifiPassword = httpServer.arg("wifi_password");
+  newWifiSSID.trim();
+  newWifiPassword.trim();
+  wifiSSID = newWifiSSID;
+  wifiPassword = newWifiPassword;
+
+  if (httpServer.hasArg("wifi_timeout")) {
+    wifiTimeout = httpServer.arg("wifi_timeout").toInt();
+  }
+
+  if (httpServer.hasArg("ap_ssid") && httpServer.hasArg("ap_password")) {
+    String newApSSID = httpServer.arg("ap_ssid");
+    String newApPassword = httpServer.arg("ap_password");
+    newApSSID.trim();
+    newApPassword.trim();
+    if (newApSSID.length() > 0 && newApPassword.length() > 0) {
+      apSSID = newApSSID;
+      apPassword = newApPassword;
+    }
+  }
+
+  if (httpServer.hasArg("ota_username") && httpServer.hasArg("ota_password")) {
+    String newOtaUsername = httpServer.arg("ota_username");
+    String newOtaPassword = httpServer.arg("ota_password");
+    newOtaUsername.trim();
+    newOtaPassword.trim();
+    if (newOtaUsername.length() > 0 && newOtaPassword.length() > 0) {
+      otaUsername = newOtaUsername;
+      otaPassword = newOtaPassword;
+    }
+  }
+
+  // Save the settings to the filesystem
+  if (lfsReady) {
+    File wifiConfig = LittleFS.open("/config/wifi.txt", "w");
+    if (wifiConfig) {
+      wifiConfig.println(wifiSSID);
+      wifiConfig.println(wifiPassword);
+      wifiConfig.println(wifiTimeout);
+      wifiConfig.close();
+    }
+
+    File apConfig = LittleFS.open("/config/ap.txt", "w");
+    if (apConfig) {
+      apConfig.println(apSSID);
+      apConfig.println(apPassword);
+      apConfig.close();
+    }
+
+    File otaConfig = LittleFS.open("/config/ota.txt", "w");
+    if (otaConfig) {
+      otaConfig.println(otaUsername);
+      otaConfig.println(otaPassword);
+      otaConfig.close();
+    }
+  }
+
+  // reboot to use new settings
+  httpServer.send(200, "text/plain", "Settings updated, rebooting...");
+  delay(1000);
+  watchdog_reboot(0, 0, 0);
 }
 
 void handleToggleOutputPage() {
@@ -250,35 +353,32 @@ void setup(void) {
   }
 
   // Load configuration
-  char wifiSSID[32];
-  char wifiPassword[32];
-  char apSSID[32];
-  char apPassword[32];
-  String otaUsername;
-  String otaPassword;
   if (lfsReady) {
     File wifiConfig = LittleFS.open("/config/wifi.txt", "r");
-    if (wifiConfig) {
-      int len = wifiConfig.readBytesUntil('\n', wifiSSID, 31);
-      wifiSSID[len] = '\0'; // Null-terminate the string
-      len = wifiConfig.readBytesUntil('\n', wifiPassword, 31);
-      wifiPassword[len] = '\0'; // Null-terminate the string
+    if (wifiConfig && wifiConfig.size() > 0) {
+      wifiSSID = wifiConfig.readStringUntil('\n');
+      wifiSSID.trim();
+      wifiPassword = wifiConfig.readStringUntil('\n');
+      wifiPassword.trim();
+      wifiTimeout = wifiConfig.parseInt();
       wifiConfig.close();
     }
 
     File apConfig = LittleFS.open("/config/ap.txt", "r");
-    if (apConfig) {
-      int len = apConfig.readBytesUntil('\n', apSSID, 31);
-      apSSID[len] = '\0'; // Null-terminate the string
-      len = apConfig.readBytesUntil('\n', apPassword, 31);
-      apPassword[len] = '\0'; // Null-terminate the string
+    if (apConfig && apConfig.size() > 0) {
+      apSSID = apConfig.readStringUntil('\n');
+      apSSID.trim();
+      apPassword = apConfig.readStringUntil('\n');
+      apPassword.trim();
       apConfig.close();
     }
 
     File otaConfig = LittleFS.open("/config/ota.txt", "r");
-    if (otaConfig) {
-      otaConfig.readStringUntil('\n');
-      otaConfig.readStringUntil('\n');
+    if (otaConfig && otaConfig.size() > 0) {
+      otaUsername = otaConfig.readStringUntil('\n');
+      otaUsername.trim();
+      otaPassword = otaConfig.readStringUntil('\n');
+      otaPassword.trim();
       otaConfig.close();
     }
 
@@ -286,22 +386,29 @@ void setup(void) {
     // We might reboot just because the doors are all closed in park
     // So we should remember the state
     File outputConfig = LittleFS.open("/config/output_enabled.txt", "r");
-    if (outputConfig) {
-      String outputEnabled = outputConfig.readStringUntil('\n');
-      output_enabled = outputEnabled.toInt();
+    if (outputConfig && outputConfig.size() > 0) {
+      output_enabled = outputConfig.parseInt();
       outputConfig.close();
     }
   }
 
   // Setup WiFi
   bool wifiConnected = false;
-  if (strlen(wifiSSID) > 0 && strlen(wifiPassword) > 0) {
-    wifiConnected = setupClient(wifiSSID, wifiPassword);
+  if (wifiSSID.length() > 0 && wifiPassword.length() > 0) {
+    char wifiSSIDArray[32];
+    char wifiPasswordArray[32];
+    wifiSSID.toCharArray(wifiSSIDArray, 32);
+    wifiPassword.toCharArray(wifiPasswordArray, 32);
+    wifiConnected = setupClient(wifiSSIDArray, wifiPasswordArray, wifiTimeout);
   }
 
   if (!wifiConnected) {
     // Fallback to AP mode if WiFi fails/has not been configured
-    setupAccessPoint(apSSID, apPassword);
+    char apSSIDArray[32];
+    char apPasswordArray[32];
+    apSSID.toCharArray(apSSIDArray, 32);
+    apPassword.toCharArray(apPasswordArray, 32);
+    setupAccessPoint(apSSIDArray, apPasswordArray);
   }
 
   // Setup LIN
@@ -320,6 +427,7 @@ void setup(void) {
   httpServer.on("/", handleRoot);
   httpServer.on("/runTest", handleRunTestPage);
   httpServer.on("/settings", handleSettingsPage);
+  httpServer.on("/updateSettings", handleUpdateSettings);
   httpServer.on("/toggleOutput", handleToggleOutputPage);
   httpServer.on("/autoRefresh", handleToggleAutoRefresh);
   httpServer.begin();
