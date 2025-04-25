@@ -5,10 +5,12 @@
 
 class lin {
     public:
-        static const short MAX_BYTES = 11; // Store max of 11 bytes: sync, id, up to 8 data bytes, checksum
         void setupSerial();
         short readFrame(byte dataBuffer[], byte pid = 0);
+        short updateFrame(byte expectedPID = 0);
         byte calculateChecksum(byte dataBuffer[], short length);
+
+        byte dataBuffer[11]; // Store max of 11 bytes: sync, id, up to 8 data bytes, checksum
 };
 
 #endif // LIN_H
