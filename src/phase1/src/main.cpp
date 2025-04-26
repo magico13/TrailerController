@@ -10,7 +10,7 @@
 #include <LEAmDNS.h>
 
 #include "lin.h"
-#define VERSION "2025-04-25"
+#define VERSION "2025-04-25.1"
 
 #define LIN_FRAME_PID 0xCF
 #define TAIL_PIN 2
@@ -461,16 +461,33 @@ void loop(void) {
   mdns.update();
 
   // Handle LIN frames
-  short bytesRead = linStack.updateFrame(LIN_FRAME_PID);
-  if (bytesRead > 0) {
-    // Process the LIN frame
-    latestFrameString = "";
-    for (int i = 0; i < bytesRead; i++) {
-      latestFrameString += "0x" + String(linStack.dataBuffer[i], HEX) + " ";
-    }
-    Serial.print(latestFrameString);
-    // Check if the checksum is valid
+  // short bytesRead = linStack.updateFrame(LIN_FRAME_PID);
+  // if (bytesRead > 0) {
+  //   // Process the LIN frame
+  //   latestFrameString = "";
+  //   for (int i = 0; i < bytesRead; i++) {
+  //     latestFrameString += "0x" + String(linStack.dataBuffer[i], HEX) + " ";
+  //   }
+  //   Serial.print(latestFrameString);
+  //   // Check if the checksum is valid
+  //   byte calculatedChecksum = linStack.calculateChecksum(linStack.dataBuffer, bytesRead - 1);
+  //   byte receivedChecksum = linStack.dataBuffer[bytesRead - 1];
+  //   if (calculatedChecksum == receivedChecksum) {
+  //     Serial.print("OK");
+  //     processLightLINFrame(linStack.dataBuffer[2]);
+  //   } else {
+  //     Serial.print("ERR ");
+  //     Serial.print(calculatedChecksum, HEX);
+  //   }
+  // }
+
+  int bytesRead = linStack.readFrame(linStack.dataBuffer, LIN_FRAME_PID);
+  if (bytesRead > 2) {
     byte calculatedChecksum = linStack.calculateChecksum(linStack.dataBuffer, bytesRead - 1);
+    for (int i = 0; i < bytesRead; i++) {
+      Serial.print(linStack.dataBuffer[i], HEX);
+      Serial.print(" ");
+    }
     byte receivedChecksum = linStack.dataBuffer[bytesRead - 1];
     if (calculatedChecksum == receivedChecksum) {
       Serial.print("OK");
@@ -479,27 +496,10 @@ void loop(void) {
       Serial.print("ERR ");
       Serial.print(calculatedChecksum, HEX);
     }
+    Serial.println();
+    latestFrameString = "";
+    for (int i = 0; i < bytesRead; i++) {
+      latestFrameString += "0x" + String(linStack.dataBuffer[i], HEX) + " ";
+    }
   }
-
-  // int bytesRead = linStack.readFrame(data, LIN_FRAME_PID);
-  // if (bytesRead > 2) {
-  //   byte calculatedChecksum = linStack.calculateChecksum(data, bytesRead - 1);
-  //   for (int i = 0; i < bytesRead; i++) {
-  //     Serial.print(data[i], HEX);
-  //     Serial.print(" ");
-  //   }
-  //   byte receivedChecksum = data[bytesRead - 1];
-  //   if (calculatedChecksum == receivedChecksum) {
-  //     Serial.print("OK");
-  //     processLightLINFrame(data[2]);
-  //   } else {
-  //     Serial.print("ERR ");
-  //     Serial.print(calculatedChecksum, HEX);
-  //   }
-  //   Serial.println();
-  //   latestFrameString = "";
-  //   for (int i = 0; i < bytesRead; i++) {
-  //     latestFrameString += "0x" + String(data[i], HEX) + " ";
-  //   }
-  // }
 }
