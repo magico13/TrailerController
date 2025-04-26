@@ -479,28 +479,4 @@ void loop(void) {
     }
     Serial.print(latestFrameString);
   }
-
-  // int bytesRead = linStack.readFrame(linStack.dataBuffer, LIN_FRAME_PID);
-  // if (bytesRead > 2) {
-  //   latestFrameString = "";
-  //   byte receivedChecksum = linStack.dataBuffer[bytesRead - 1];
-  //   byte calculatedChecksum = linStack.calculateChecksum(linStack.dataBuffer, bytesRead - 1);
-  //   for (int i = 0; i < bytesRead; i++) {
-  //     Serial.print(linStack.dataBuffer[i], HEX);
-  //     Serial.print(" ");
-
-  //     latestFrameString += "0x" + String(linStack.dataBuffer[i], HEX) + " ";
-  //   }
-    
-  //   if (calculatedChecksum == receivedChecksum) {
-  //     Serial.print("OK");
-  //     latestFrameString += "OK";
-  //     processLightLINFrame(linStack.dataBuffer[2]);
-  //   } else {
-  //     Serial.print("ERR ");
-  //     Serial.print(calculatedChecksum, HEX);
-  //     latestFrameString += "ERR 0x" + String(calculatedChecksum, HEX);
-  //   }
-  //   Serial.println();
-  // }
 }
