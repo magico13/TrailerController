@@ -10,7 +10,7 @@
 #include <LEAmDNS.h>
 
 #include "lin.h"
-#define VERSION "2025-04-25.1"
+#define VERSION "2025-04-26.0"
 
 #define LIN_FRAME_PID 0xCF
 #define TAIL_PIN 2
@@ -483,23 +483,25 @@ void loop(void) {
 
   int bytesRead = linStack.readFrame(linStack.dataBuffer, LIN_FRAME_PID);
   if (bytesRead > 2) {
+    latestFrameString = "";
+    byte receivedChecksum = linStack.dataBuffer[bytesRead - 1];
     byte calculatedChecksum = linStack.calculateChecksum(linStack.dataBuffer, bytesRead - 1);
     for (int i = 0; i < bytesRead; i++) {
       Serial.print(linStack.dataBuffer[i], HEX);
       Serial.print(" ");
+
+      latestFrameString += "0x" + String(linStack.dataBuffer[i], HEX) + " ";
     }
-    byte receivedChecksum = linStack.dataBuffer[bytesRead - 1];
+    
     if (calculatedChecksum == receivedChecksum) {
       Serial.print("OK");
+      latestFrameString += "OK";
       processLightLINFrame(linStack.dataBuffer[2]);
     } else {
       Serial.print("ERR ");
       Serial.print(calculatedChecksum, HEX);
+      latestFrameString += "ERR 0x" + String(calculatedChecksum, HEX);
     }
     Serial.println();
-    latestFrameString = "";
-    for (int i = 0; i < bytesRead; i++) {
-      latestFrameString += "0x" + String(linStack.dataBuffer[i], HEX) + " ";
-    }
   }
 }
