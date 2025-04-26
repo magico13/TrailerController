@@ -80,10 +80,11 @@ short lin::updateFrame(byte expectedPID) {
     // Process the frame if complete
     if (frameState == FRAME_COMPLETE) {
         // Reset for next frame
+        short length = dataIndex;
         dataIndex = 0;
         frameState = WAIT_SYNC;
-        if (dataIndex >= 2) { // minimal frame length check
-            return dataIndex; // return the number of bytes read
+        if (length >= 2) { // minimal frame length check
+            return length; // return the number of bytes read
         }
         return 0; // return 0 if frame is not valid
     }
