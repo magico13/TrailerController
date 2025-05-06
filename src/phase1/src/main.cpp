@@ -10,7 +10,7 @@
 #include <LEAmDNS.h>
 
 #include "lin.h"
-#define VERSION "2025-04-26.1"
+#define VERSION "2025-05-05.1"
 
 #define LIN_FRAME_PID 0xCF
 #define TAIL_PIN 2
@@ -22,6 +22,7 @@ const char* right_arrow_icon = "►";
 const char* headlight_icon = "💡";
 
 bool output_enabled = false;
+bool process_frames = true;
 bool left_state = false;
 bool right_state = false;
 bool tail_state = false;
@@ -63,6 +64,20 @@ void flashLED(int count, int delay_ms) {
     digitalWrite(LED_BUILTIN, false);
     delay(delay_ms);
   }
+}
+
+String populateActiveLights() {
+  String activeLights = "";
+  if (left_state) {
+    activeLights += left_arrow_icon; // Left arrow
+  }
+  if (tail_state) {
+    activeLights += headlight_icon; // Light bulb
+  }
+  if (right_state) {
+    activeLights += right_arrow_icon; // Right arrow
+  }
+  return activeLights;
 }
 
 void setupAccessPoint(char* ssid, char* password) {
@@ -135,6 +150,7 @@ void setLightState(int pin, bool state) {
 
 void toggleOutputEnabled() {
   output_enabled = !output_enabled;
+  process_frames = true;
   // if filesystem is ready, set the state in a file so we can read it on boot
   if (lfsReady) {
     File file = LittleFS.open("/config/output_enabled.txt", "w");
@@ -168,24 +184,32 @@ void processLightLINFrame(byte dataByte) {
 }
 
 void runTestSequence() {
-  // Set all lights to false
-  digitalWrite(LEFT_PIN, false);
-  digitalWrite(RIGHT_PIN, false);
-  digitalWrite(TAIL_PIN, false);
+  bool original_output_enabled = output_enabled;
+  output_enabled = true;
+  process_frames = false;
 
-  digitalWrite(LEFT_PIN, true);
+  // Set all lights to false
+  setLightState(LEFT_PIN, false);
+  setLightState(RIGHT_PIN, false);
+  setLightState(TAIL_PIN, false);
+
+  setLightState(LEFT_PIN, true);
   delay(1000);
-  digitalWrite(LEFT_PIN, false);
-  digitalWrite(RIGHT_PIN, true);
+  setLightState(LEFT_PIN, false);
+  setLightState(RIGHT_PIN, true);
   delay(1000);
-  digitalWrite(RIGHT_PIN, false);
-  digitalWrite(TAIL_PIN, true);
+  setLightState(RIGHT_PIN, false);
+  setLightState(TAIL_PIN, true);
   delay(1000);
-  digitalWrite(TAIL_PIN, false);
+  setLightState(TAIL_PIN, false);
   flashLED(4, 100);
+
+  output_enabled = original_output_enabled;
+  process_frames = true;
 }
 
 void handleRoot() {
+  process_frames = true;
   // open index.html from /web folder
   File file = LittleFS.open("/web/index.html", "r");
   if (!file) {
@@ -194,17 +218,7 @@ void handleRoot() {
   }
   // replace placeholders in the HTML file
   String html = file.readString();
-  String activeLights = "";
-  if (left_state) {
-    activeLights += left_arrow_icon; // Left arrow
-  }
-  if (tail_state) {
-    activeLights += headlight_icon; // Light bulb
-  }
-  if (right_state) {
-    activeLights += right_arrow_icon; // Right arrow
-  }
-  html.replace("{active_lights}", activeLights);
+  html.replace("{active_lights}", populateActiveLights());
 
   html.replace("{auto_refresh}", autoRefresh ? "<meta http-equiv=\"refresh\" content=\"1\">" : "");
   html.replace("{output_status}", output_enabled ? "Active" : "Disabled");
@@ -336,6 +350,49 @@ void handleToggleAutoRefresh() {
   httpServer.send(302, "text/plain", "");
 }
 
+void handleControlPage() {
+  // Turn on output but turn off lin processing
+  output_enabled = true;
+  process_frames = false;
+  if (httpServer.hasArg("id")) {
+    int id = httpServer.arg("id").toInt();
+    switch (id) {
+      case 0: // Left Signal
+        left_state = !left_state;
+        break;
+      case 1: // Right Signal
+        right_state = !right_state;
+        break;
+      case 2: // Tail Lights
+        tail_state = !tail_state;
+        break;
+      default:
+        // Unrecognized id;
+        break;
+    }
+  } else {
+    // If no id is provided, turn off all lights
+    left_state = false;
+    right_state = false;
+    tail_state = false;
+  }
+
+  setLightState(LEFT_PIN, left_state);
+  setLightState(RIGHT_PIN, right_state);
+  setLightState(TAIL_PIN, tail_state);
+
+  // open control.html from /web folder
+  File file = LittleFS.open("/web/control.html", "r");
+  if (!file) {
+    httpServer.send(404, "text/plain", "File not found");
+    return;
+  }
+  
+  String html = file.readString();
+  html.replace("{active_lights}", populateActiveLights());
+  httpServer.send(200, "text/html", html);
+}
+
 void setup(void) {
   // set control pins as an output and set them to LOW
   pinMode(LEFT_PIN, OUTPUT);
@@ -447,6 +504,10 @@ void setup(void) {
   httpServer.on("/updateSettings", handleUpdateSettings);
   httpServer.on("/toggleOutput", handleToggleOutputPage);
   httpServer.on("/autoRefresh", handleToggleAutoRefresh);
+  httpServer.on("/control", handleControlPage);
+  httpServer.onNotFound([]() {
+    httpServer.send(404, "text/plain", "File not found");
+  });
   httpServer.begin();
 
   Serial.println("HTTP server started");
@@ -461,22 +522,25 @@ void loop(void) {
   mdns.update();
 
   // Handle LIN frames
-  short bytesRead = linStack.updateFrame(LIN_FRAME_PID);
-  if (bytesRead > 0) {
-    // Process the LIN frame
-    latestFrameString = "";
-    for (int i = 0; i < bytesRead; i++) {
-      latestFrameString += "0x" + String(linStack.dataBuffer[i], HEX) + " ";
+  if (process_frames) {
+    short bytesRead = linStack.updateFrame(LIN_FRAME_PID);
+    if (bytesRead > 0) {
+      // Process the LIN frame
+      latestFrameString = "";
+      for (int i = 0; i < bytesRead; i++) {
+        latestFrameString += "0x" + String(linStack.dataBuffer[i], HEX) + " ";
+      }
+      // Check if the checksum is valid
+      byte calculatedChecksum = linStack.calculateChecksum(linStack.dataBuffer, bytesRead - 1);
+      byte receivedChecksum = linStack.dataBuffer[bytesRead - 1];
+      if (calculatedChecksum == receivedChecksum) {
+        latestFrameString += "OK";
+        // Process the LIN frame
+        processLightLINFrame(linStack.dataBuffer[2]);
+      } else {
+        latestFrameString += "ERR 0x" + String(calculatedChecksum, HEX);
+      }
+      Serial.print(latestFrameString);
     }
-    // Check if the checksum is valid
-    byte calculatedChecksum = linStack.calculateChecksum(linStack.dataBuffer, bytesRead - 1);
-    byte receivedChecksum = linStack.dataBuffer[bytesRead - 1];
-    if (calculatedChecksum == receivedChecksum) {
-      latestFrameString += "OK";
-      processLightLINFrame(linStack.dataBuffer[2]);
-    } else {
-      latestFrameString += "ERR 0x" + String(calculatedChecksum, HEX);
-    }
-    Serial.print(latestFrameString);
   }
 }
