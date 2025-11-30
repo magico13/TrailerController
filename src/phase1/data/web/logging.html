@@ -23,19 +23,6 @@
             font-size: 24px;
             margin: 30px;
         }
-        .spinner {
-            border: 8px solid #333;
-            border-top: 8px solid #ffffff;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
         button {
             background-color: #1f1f1f;
             color: #ffffff;
@@ -46,73 +33,88 @@
             font-size: 16px;
             border-radius: 5px;
             width: 200px;
-            display: none;
         }
         button:hover {
             background-color: #333333;
+        }
+        button:disabled {
+            background-color: #0a0a0a;
+            color: #666666;
+            cursor: not-allowed;
         }
     </style>
 </head>
 <body>
     <h1>LIN Frame Logging</h1>
-    <div id="status">Initializing...</div>
-    <div id="spinner" class="spinner"></div>
-    <button id="homeButton" onclick="location.href='/'">Return to Home</button>
+    <div id="status">Ready to start logging</div>
+    <p>Duration: <span id="duration">Loading...</span> second<span id="plural"></span></p>
+    <button id="startButton" onclick="startLogging()">Start Logging</button>
+    <button id="refreshButton" onclick="checkStatus()" disabled>Check Status</button>
+    <button id="downloadButton" onclick="downloadLog()">Download Log</button>
+    <button onclick="location.href='/'">Return to Home</button>
 
     <script>
-        let loggingStarted = false;
-        let downloadStarted = false;
-        const loggingDuration = {logging_duration};
+        let loggingDuration = 1; // Default value
         
-        function checkStatus() {
-            if (downloadStarted) {
-                return; // Stop polling once download has started
-            }
+        // Fetch the logging configuration on page load
+        fetch('/loggingConfig')
+            .then(response => response.json())
+            .then(config => {
+                loggingDuration = config.duration;
+                document.getElementById('duration').textContent = loggingDuration;
+                if (loggingDuration !== 1) {
+                    document.getElementById('plural').textContent = 's';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching config:', error);
+                document.getElementById('duration').textContent = '?';
+            });
+        
+        function startLogging() {
+            document.getElementById('status').textContent = 'Starting logging...';
+            document.getElementById('startButton').disabled = true;
             
-            fetch('/loggingStatus')
+            fetch('/startLogging')
                 .then(response => response.text())
-                .then(status => {
-                    if (status === 'idle' && !loggingStarted) {
-                        // Start logging
-                        document.getElementById('status').textContent = 'Starting capture...';
-                        fetch('/startLogging')
-                            .then(() => {
-                                loggingStarted = true;
-                                document.getElementById('status').textContent = 'Logging LIN frames (' + loggingDuration + ' second' + (loggingDuration !== 1 ? 's' : '') + ')...';
-                            });
-                    } else if (status === 'logging') {
-                        document.getElementById('status').textContent = 'Logging LIN frames (' + loggingDuration + ' second' + (loggingDuration !== 1 ? 's' : '') + ')...';
-                    } else if (status === 'complete') {
-                        downloadStarted = true; // Set flag to stop polling
-                        document.getElementById('status').textContent = 'Logging complete! Downloading...';
-                        document.getElementById('spinner').style.display = 'none';
-                        
-                        // Trigger download
-                        window.location.href = '/getLog';
-                        
-                        // Show home button after a short delay
-                        setTimeout(() => {
-                            document.getElementById('status').textContent = 'Download started. You can now return home.';
-                            document.getElementById('homeButton').style.display = 'block';
-                        }, 1000);
-                        
-                        return; // Exit this callback
-                    }
-                    
-                    // Continue polling only if download hasn't started
-                    if (!downloadStarted) {
-                        setTimeout(checkStatus, 500);
-                    }
+                .then(() => {
+                    document.getElementById('status').textContent = 'Logging in progress (' + loggingDuration + ' second' + (loggingDuration !== 1 ? 's' : '') + ')...';
+                    document.getElementById('refreshButton').disabled = false;
                 })
                 .catch(error => {
-                    document.getElementById('status').textContent = 'Error: ' + error;
-                    document.getElementById('spinner').style.display = 'none';
-                    document.getElementById('homeButton').style.display = 'block';
+                    document.getElementById('status').textContent = 'Error starting logging: ' + error;
+                    document.getElementById('startButton').disabled = false;
                 });
         }
         
-        // Start the process
-        checkStatus();
+        function checkStatus() {
+            fetch('/loggingStatus')
+                .then(response => response.text())
+                .then(status => {
+                    if (status === 'idle') {
+                        document.getElementById('status').textContent = 'Ready to start logging';
+                        document.getElementById('startButton').disabled = false;
+                        document.getElementById('refreshButton').disabled = true;
+                    } else if (status === 'logging') {
+                        document.getElementById('status').textContent = 'Logging in progress...';
+                    } else if (status === 'complete') {
+                        document.getElementById('status').textContent = 'Logging complete! Ready to download.';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('status').textContent = 'Error checking status: ' + error;
+                });
+        }
+        
+        function downloadLog() {
+            document.getElementById('status').textContent = 'Downloading...';
+            window.location.href = '/getLog';
+            setTimeout(() => {
+                document.getElementById('status').textContent = 'Download started. You can start a new capture.';
+                document.getElementById('startButton').disabled = false;
+                document.getElementById('refreshButton').disabled = true;
+            }, 500);
+        }
     </script>
 </body>
 </html>
