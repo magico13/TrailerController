@@ -8,9 +8,10 @@
 #include <HTTPUpdateServer.h>
 #include <LittleFS.h>
 #include <LEAmDNS.h>
+#include <vector>
 
 #include "lin.h"
-#define VERSION "2025-11-30.0"
+#define VERSION "2025-11-30.1"
 
 #define LIN_FRAME_PID 0xCF
 #define TAIL_PIN 2
@@ -51,6 +52,23 @@ bool autoRefresh = false;
 
 // LIN Variables
 lin linStack;
+
+// Logging Variables
+struct LINFrame {
+  unsigned long timestamp;
+  byte pid;
+  byte data;
+  byte checksum;
+  byte expectedChecksum;
+  bool checksumValid;
+};
+
+bool isLogging = false;
+unsigned long loggingStartTime = 0;
+const unsigned long LOGGING_DURATION_MS = 5000; // 5 seconds
+const unsigned int EXPECTED_FRAME_RATE_HZ = 100; // Conservative estimate
+const unsigned int EXPECTED_FRAME_COUNT = (LOGGING_DURATION_MS / 1000) * EXPECTED_FRAME_RATE_HZ;
+std::vector<LINFrame> frameBuffer;
 
 // mDNS Responder
 MDNSResponder mdns; // Declare mDNS responder
@@ -207,6 +225,8 @@ void runTestSequence() {
   output_enabled = original_output_enabled;
   process_frames = true;
 }
+
+#pragma region HTTP Handlers
 
 void handleRoot() {
   process_frames = true;
@@ -393,6 +413,103 @@ void handleControlPage() {
   httpServer.send(200, "text/html", html);
 }
 
+
+void handleStartLogging() {
+  // Clear any existing log file and frame buffer
+  if (lfsReady) {
+    LittleFS.remove("/logs/lin_capture.txt");
+  }
+  frameBuffer.clear();
+  frameBuffer.reserve(EXPECTED_FRAME_COUNT); // Pre-allocate based on expected frame rate
+  
+  isLogging = true;
+  loggingStartTime = millis();
+  process_frames = true;
+  
+  httpServer.send(200, "text/plain", "Logging started");
+}
+
+void handleLoggingStatus() {
+  String status = "idle";
+  if (isLogging) {
+    unsigned long elapsed = millis() - loggingStartTime;
+    if (elapsed < LOGGING_DURATION_MS) {
+      status = "logging";
+    } else {
+      status = "complete";
+    }
+  }
+  httpServer.send(200, "text/plain", status);
+}
+
+void handleGetLog() {
+  if (!lfsReady) {
+    httpServer.send(500, "text/plain", "Filesystem not ready");
+    return;
+  }
+  
+  File file = LittleFS.open("/logs/lin_capture.txt", "r");
+  if (!file) {
+    httpServer.send(404, "text/plain", "Log file not found");
+    return;
+  }
+  
+  httpServer.sendHeader("Content-Disposition", "attachment; filename=lin_capture.txt");
+  httpServer.streamFile(file, "text/plain");
+  file.close();
+}
+
+void handleLoggingPage() {
+  File file = LittleFS.open("/web/logging.html", "r");
+  if (!file) {
+    httpServer.send(404, "text/plain", "File not found");
+    return;
+  }
+  httpServer.streamFile(file, "text/html");
+  file.close();
+}
+
+#pragma endregion HTTP Handlers
+
+void completeLogging() {
+  isLogging = false;
+  
+  // Write buffered frames to file
+  if (lfsReady && frameBuffer.size() > 0) {
+    File logFile = LittleFS.open("/logs/lin_capture.txt", "w");
+    if (logFile) {
+      logFile.println("# LIN Frame Capture Log");
+      logFile.println("# Format: timestamp_ms,PID,data_byte,checksum,status,expected_checksum");
+      logFile.println("# Status: OK = valid checksum, ERR = checksum mismatch");
+      logFile.println("# expected_checksum only shown for ERR frames");
+      logFile.println("# Capture duration: " + String(LOGGING_DURATION_MS) + " ms");
+      logFile.println("# Total frames: " + String(frameBuffer.size()));
+      logFile.println();
+      
+      for (const auto& frame : frameBuffer) {
+        logFile.print(frame.timestamp);
+        logFile.print(",0x");
+        logFile.print(frame.pid, HEX);
+        logFile.print(",0x");
+        logFile.print(frame.data, HEX);
+        logFile.print(",0x");
+        logFile.print(frame.checksum, HEX);
+        logFile.print(",");
+        logFile.print(frame.checksumValid ? "OK" : "ERR");
+        if (!frame.checksumValid) {
+          logFile.print(",0x");
+          logFile.print(frame.expectedChecksum, HEX);
+        }
+        logFile.println();
+      }
+      
+      logFile.close();
+      Serial.println("Log file written with " + String(frameBuffer.size()) + " frames");
+    }
+  }
+}
+
+
 void setup(void) {
   // set control pins as an output and set them to LOW
   pinMode(LEFT_PIN, OUTPUT);
@@ -505,6 +622,10 @@ void setup(void) {
   httpServer.on("/toggleOutput", handleToggleOutputPage);
   httpServer.on("/autoRefresh", handleToggleAutoRefresh);
   httpServer.on("/control", handleControlPage);
+  httpServer.on("/logging", handleLoggingPage);
+  httpServer.on("/startLogging", handleStartLogging);
+  httpServer.on("/loggingStatus", handleLoggingStatus);
+  httpServer.on("/getLog", handleGetLog);
   httpServer.onNotFound([]() {
     httpServer.send(404, "text/plain", "File not found");
   });
@@ -521,9 +642,15 @@ void loop(void) {
   // Handle mDNS queries
   mdns.update();
 
+  // Handle logging completion
+  if (isLogging && (millis() - loggingStartTime >= LOGGING_DURATION_MS)) {
+    completeLogging();
+  }
+
   // Handle LIN frames
   if (process_frames) {
-    short bytesRead = linStack.updateFrame(LIN_FRAME_PID);
+    // When logging, capture all PIDs; otherwise only look for the expected PID
+    short bytesRead = linStack.updateFrame(isLogging ? 0 : LIN_FRAME_PID);
     if (bytesRead > 0) {
       // Process the LIN frame
       latestFrameString = "";
@@ -533,13 +660,30 @@ void loop(void) {
       // Check if the checksum is valid
       byte calculatedChecksum = linStack.calculateChecksum(linStack.dataBuffer, bytesRead - 1);
       byte receivedChecksum = linStack.dataBuffer[bytesRead - 1];
-      if (calculatedChecksum == receivedChecksum) {
+      bool checksumValid = (calculatedChecksum == receivedChecksum);
+      
+      if (checksumValid) {
         latestFrameString += "OK";
-        // Process the LIN frame
-        processLightLINFrame(linStack.dataBuffer[2]);
+        // Only process light frame if it's the expected PID and checksum is valid
+        if (linStack.dataBuffer[1] == LIN_FRAME_PID) {
+          processLightLINFrame(linStack.dataBuffer[2]);
+        }
       } else {
         latestFrameString += "ERR 0x" + String(calculatedChecksum, HEX);
       }
+      
+      // If logging, capture ALL frames (valid or not)
+      if (isLogging) {
+        LINFrame frame;
+        frame.timestamp = millis() - loggingStartTime;
+        frame.pid = linStack.dataBuffer[1];
+        frame.data = linStack.dataBuffer[2];
+        frame.checksum = receivedChecksum;
+        frame.expectedChecksum = calculatedChecksum;
+        frame.checksumValid = checksumValid;
+        frameBuffer.push_back(frame);
+      }
+      
       Serial.print(latestFrameString);
     }
   }

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIN Logging</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        #status {
+            font-size: 24px;
+            margin: 30px;
+        }
+        .spinner {
+            border: 8px solid #333;
+            border-top: 8px solid #ffffff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        button {
+            background-color: #1f1f1f;
+            color: #ffffff;
+            border: none;
+            padding: 10px 10px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+            width: 200px;
+            display: none;
+        }
+        button:hover {
+            background-color: #333333;
+        }
+    </style>
+</head>
+<body>
+    <h1>LIN Frame Logging</h1>
+    <div id="status">Initializing...</div>
+    <div id="spinner" class="spinner"></div>
+    <button id="homeButton" onclick="location.href='/'">Return to Home</button>
+
+    <script>
+        let loggingStarted = false;
+        
+        function checkStatus() {
+            fetch('/loggingStatus')
+                .then(response => response.text())
+                .then(status => {
+                    if (status === 'idle' && !loggingStarted) {
+                        // Start logging
+                        document.getElementById('status').textContent = 'Starting capture...';
+                        fetch('/startLogging')
+                            .then(() => {
+                                loggingStarted = true;
+                                document.getElementById('status').textContent = 'Logging LIN frames (5 seconds)...';
+                            });
+                    } else if (status === 'logging') {
+                        document.getElementById('status').textContent = 'Logging LIN frames (5 seconds)...';
+                    } else if (status === 'complete') {
+                        document.getElementById('status').textContent = 'Logging complete! Downloading...';
+                        document.getElementById('spinner').style.display = 'none';
+                        
+                        // Trigger download
+                        window.location.href = '/getLog';
+                        
+                        // Show home button after a short delay
+                        setTimeout(() => {
+                            document.getElementById('status').textContent = 'Download started. You can now return home.';
+                            document.getElementById('homeButton').style.display = 'block';
+                        }, 1000);
+                        
+                        return; // Stop polling
+                    }
+                    
+                    // Continue polling
+                    setTimeout(checkStatus, 500);
+                })
+                .catch(error => {
+                    document.getElementById('status').textContent = 'Error: ' + error;
+                    document.getElementById('spinner').style.display = 'none';
+                    document.getElementById('homeButton').style.display = 'block';
+                });
+        }
+        
+        // Start the process
+        checkStatus();
+    </script>
+</body>
+</html>
