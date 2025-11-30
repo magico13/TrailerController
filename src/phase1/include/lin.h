@@ -6,7 +6,6 @@
 class lin {
     public:
         void setupSerial();
-        short readFrame(byte dataBuffer[], byte pid = 0);
         short updateFrame(byte expectedPID = 0);
         byte calculateChecksum(byte dataBuffer[], short length);
 

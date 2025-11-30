@@ -10,7 +10,7 @@
 #include <LEAmDNS.h>
 
 #include "lin.h"
-#define VERSION "2025-05-05.1"
+#define VERSION "2025-11-30.0"
 
 #define LIN_FRAME_PID 0xCF
 #define TAIL_PIN 2

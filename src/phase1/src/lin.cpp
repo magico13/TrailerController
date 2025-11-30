@@ -2,47 +2,17 @@
 
 #define MAX_BYTES 11 // Maximum number of bytes in a LIN frame
 // Break is 14 sets of 52 us (728)
-const unsigned long BREAK_THRESHOLD = 728;
+const unsigned long BREAK_THRESHOLD = 650; // microseconds, smaller than 728 to allow some margin
 short dataIndex = 0;
 unsigned long lastReceivedTime = 0;
 enum { WAIT_SYNC, RECEIVING, FRAME_COMPLETE } frameState;
+bool frameOverflow = false;
 
 
 void lin::setupSerial() {
     Serial1.begin(19200); // LIN bus
     frameState = WAIT_SYNC; // Initialize the frame state
 }
-
-short lin::readFrame(byte dataBuffer[], byte pid) {
-    dataIndex = 0;
-    lastReceivedTime = micros();
-    // TODO: this shouldn't busy loop.
-    // We should be able to check for our PID and then throw away the rest of the frame if it's not ours.
-    // We should also eventually update to allow replying to the controller.
-    while (micros() - lastReceivedTime < BREAK_THRESHOLD) {
-        while (Serial1.available() && dataIndex < MAX_BYTES) {
-            // Read the incoming byte
-            dataBuffer[dataIndex++] = Serial1.read();
-            lastReceivedTime = micros(); // Update the last received time
-            if (dataBuffer[0] != 0x55) {
-                dataIndex = 0; // Reset the index if the first byte is not 0x55 (sync byte)
-            }
-            if (pid > 0 && dataIndex == 2 && dataBuffer[1] != pid) {
-                dataIndex = 0; // Reset the index if the second byte is not the expected PID
-            }
-            if (dataIndex >= MAX_BYTES) {
-                break;
-            }
-        }
-    }
-    if (dataIndex < 2) {
-        return 0; // Return 0 if less than 2 bytes are read
-    }
-
-    // Return the count of bytes read
-    return dataIndex;
-}
-
 
 short lin::updateFrame(byte expectedPID) {
     // Check if new bytes are available from Serial1
@@ -56,6 +26,7 @@ short lin::updateFrame(byte expectedPID) {
                 dataBuffer[0] = inByte;
                 dataIndex = 1;
                 frameState = RECEIVING;
+                frameOverflow = false;
             }
         } else if (frameState == RECEIVING) {
             // Optionally, check for expected PID at second byte
@@ -63,10 +34,17 @@ short lin::updateFrame(byte expectedPID) {
                 // Not the frame we are expecting, reset
                 dataIndex = 0;
                 frameState = WAIT_SYNC;
+                frameOverflow = false;
+                if (inByte == 0x55) {
+                    dataBuffer[0] = inByte;
+                    dataIndex = 1;
+                    frameState = RECEIVING;
+                }
             } else {
-                dataBuffer[dataIndex++] = inByte;
-                if (dataIndex >= MAX_BYTES) {
-                    frameState = FRAME_COMPLETE;
+                if (dataIndex < MAX_BYTES) {
+                    dataBuffer[dataIndex++] = inByte;
+                } else {
+                    frameOverflow = true;
                 }
             }
         }
@@ -81,9 +59,11 @@ short lin::updateFrame(byte expectedPID) {
     if (frameState == FRAME_COMPLETE) {
         // Reset for next frame
         short length = dataIndex;
+        bool droppedFrame = frameOverflow;
         dataIndex = 0;
         frameState = WAIT_SYNC;
-        if (length >= 2) { // minimal frame length check
+        frameOverflow = false;
+        if (!droppedFrame && length >= 2) { // minimal frame length check
             return length; // return the number of bytes read
         }
         return 0; // return 0 if frame is not valid
