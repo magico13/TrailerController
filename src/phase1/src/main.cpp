@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "lin.h"
-#define VERSION "2025-11-30.1"
+#define VERSION "2025-11-30.2"
 
 #define LIN_FRAME_PID 0xCF
 #define TAIL_PIN 2
@@ -56,8 +56,10 @@ lin linStack;
 // Logging Variables
 struct LINFrame {
   unsigned long timestamp;
+  byte sync;
   byte pid;
-  byte data;
+  byte data[8];  // Up to 8 data bytes
+  byte dataLength;  // Number of actual data bytes
   byte checksum;
   byte expectedChecksum;
   bool checksumValid;
@@ -65,7 +67,8 @@ struct LINFrame {
 
 bool isLogging = false;
 unsigned long loggingStartTime = 0;
-const unsigned long LOGGING_DURATION_MS = 5000; // 5 seconds
+const unsigned int LOGGING_DURATION_S = 1;
+const unsigned long LOGGING_DURATION_MS = LOGGING_DURATION_S * 1000;
 const unsigned int EXPECTED_FRAME_RATE_HZ = 100; // Conservative estimate
 const unsigned int EXPECTED_FRAME_COUNT = (LOGGING_DURATION_MS / 1000) * EXPECTED_FRAME_RATE_HZ;
 std::vector<LINFrame> frameBuffer;
@@ -244,6 +247,7 @@ void handleRoot() {
   html.replace("{output_status}", output_enabled ? "Active" : "Disabled");
   html.replace("{lin_frame}", latestFrameString);
   html.replace("{tcu_temp}", String(getOnboardTemperature()));
+  html.replace("{logging_duration}", String(LOGGING_DURATION_S));
   html.replace("{version}", VERSION);
   httpServer.send(200, "text/html", html);
 }
@@ -465,8 +469,12 @@ void handleLoggingPage() {
     httpServer.send(404, "text/plain", "File not found");
     return;
   }
-  httpServer.streamFile(file, "text/html");
+  String html = file.readString();
   file.close();
+  
+  // Replace the duration placeholder with actual value
+  html.replace("{logging_duration}", String(LOGGING_DURATION_S));
+  httpServer.send(200, "text/html", html);
 }
 
 #pragma endregion HTTP Handlers
@@ -479,7 +487,7 @@ void completeLogging() {
     File logFile = LittleFS.open("/logs/lin_capture.txt", "w");
     if (logFile) {
       logFile.println("# LIN Frame Capture Log");
-      logFile.println("# Format: timestamp_ms,PID,data_byte,checksum,status,expected_checksum");
+      logFile.println("# Format: timestamp_ms,sync,PID,data_bytes...,checksum,status,expected_checksum");
       logFile.println("# Status: OK = valid checksum, ERR = checksum mismatch");
       logFile.println("# expected_checksum only shown for ERR frames");
       logFile.println("# Capture duration: " + String(LOGGING_DURATION_MS) + " ms");
@@ -489,9 +497,14 @@ void completeLogging() {
       for (const auto& frame : frameBuffer) {
         logFile.print(frame.timestamp);
         logFile.print(",0x");
-        logFile.print(frame.pid, HEX);
+        logFile.print(frame.sync, HEX);
         logFile.print(",0x");
-        logFile.print(frame.data, HEX);
+        logFile.print(frame.pid, HEX);
+        // Print all data bytes
+        for (int i = 0; i < frame.dataLength; i++) {
+          logFile.print(",0x");
+          logFile.print(frame.data[i], HEX);
+        }
         logFile.print(",0x");
         logFile.print(frame.checksum, HEX);
         logFile.print(",");
@@ -676,8 +689,13 @@ void loop(void) {
       if (isLogging) {
         LINFrame frame;
         frame.timestamp = millis() - loggingStartTime;
+        frame.sync = linStack.dataBuffer[0];
         frame.pid = linStack.dataBuffer[1];
-        frame.data = linStack.dataBuffer[2];
+        // Store data bytes (everything between PID and checksum)
+        frame.dataLength = bytesRead - 3;  // Total - sync - PID - checksum
+        for (int i = 0; i < frame.dataLength && i < 8; i++) {
+          frame.data[i] = linStack.dataBuffer[2 + i];
+        }
         frame.checksum = receivedChecksum;
         frame.expectedChecksum = calculatedChecksum;
         frame.checksumValid = checksumValid;

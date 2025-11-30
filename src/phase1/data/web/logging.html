@@ -61,8 +61,14 @@
 
     <script>
         let loggingStarted = false;
+        let downloadStarted = false;
+        const loggingDuration = {logging_duration};
         
         function checkStatus() {
+            if (downloadStarted) {
+                return; // Stop polling once download has started
+            }
+            
             fetch('/loggingStatus')
                 .then(response => response.text())
                 .then(status => {
@@ -72,11 +78,12 @@
                         fetch('/startLogging')
                             .then(() => {
                                 loggingStarted = true;
-                                document.getElementById('status').textContent = 'Logging LIN frames (5 seconds)...';
+                                document.getElementById('status').textContent = 'Logging LIN frames (' + loggingDuration + ' second' + (loggingDuration !== 1 ? 's' : '') + ')...';
                             });
                     } else if (status === 'logging') {
-                        document.getElementById('status').textContent = 'Logging LIN frames (5 seconds)...';
+                        document.getElementById('status').textContent = 'Logging LIN frames (' + loggingDuration + ' second' + (loggingDuration !== 1 ? 's' : '') + ')...';
                     } else if (status === 'complete') {
+                        downloadStarted = true; // Set flag to stop polling
                         document.getElementById('status').textContent = 'Logging complete! Downloading...';
                         document.getElementById('spinner').style.display = 'none';
                         
@@ -89,11 +96,13 @@
                             document.getElementById('homeButton').style.display = 'block';
                         }, 1000);
                         
-                        return; // Stop polling
+                        return; // Exit this callback
                     }
                     
-                    // Continue polling
-                    setTimeout(checkStatus, 500);
+                    // Continue polling only if download hasn't started
+                    if (!downloadStarted) {
+                        setTimeout(checkStatus, 500);
+                    }
                 })
                 .catch(error => {
                     document.getElementById('status').textContent = 'Error: ' + error;
