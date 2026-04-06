@@ -39,7 +39,19 @@ There are some basic settings for the LIN bus that seems to be common between at
 Example trace from the inductive charger LIN bus:
 ![IC_LIN example](images/IC_LIN.png)
 
-Further testing indicates that the same data looks to be sent over both LIN buses. The light info for the trailer can be read over the LIN for the inductive charger, which makes debugging much easier since that can be read from within the cabin.
+~~Further testing indicates that the same data looks to be sent over both LIN buses. The light info for the trailer can be read over the LIN for the inductive charger, which makes debugging much easier since that can be read from within the cabin.~~
+
+While the above is true, newer documentation for the Highland Model 3 shows that LIN bus 2 from the left body controller contains both the trailer LIN and the inductive charger LIN on the same bus. There are additional LIN buses in the vehicle, but those two will always both be available together, which is extremely convenient because that means we can access both from either the rear bumper, or from the center console.
+
+## Testing Setup
+
+Within the center console, the connector numbered `X930` within the Tesla documentation is the one we'll be interfacing with for reading data and testing purposes. One option for probing here is to insert male jumper cables for breadboards into the backs of the connector, which is what I did for a long time. However, there are a plethora of aftermarket OBD2 adapter harnesses you can buy that are installed in-line with this connector, which you can modify without worrying about damaging the original wires or having to build a whole pass-through harness for the three wires we care about. I ultimately ended up modifying the one I already had installed for Scan My Tesla and added the same female connector that exists in the rear bumper for the trailer ECU.
+
+On my vehicle, pin 1 on this connector is 12V, pin 6 is the LIN bus, and pin 26 is ground. Double check via Tesla's documentation for your specific build, and also with a multimeter! Searching for `X930` in the interactive schematics on Tesla's service website should be enough to pull up the pinout.
+
+The picture below shows the testing setup with a full prototype unit, but the same basic idea works for testing with just a signal analyzer.
+
+![Setup](/docs/images/prototype2/testing.jpg)
 
 ### Reading the Lights Data
 
