@@ -8,18 +8,26 @@ The vehicle used for testing is a US-spec, Fremont factory, 2022 Tesla Model 3 L
 
 At the time of writing, this project is intended to be passive, only reading information from the vehicle computers without attempting to send any commands to the vehicle. This is safer from both a security perspective and from the perspective of potentially damaging the vehicle electronics.
 
+## OEM Tesla Parts
+
+Note that since the Highland Model 3 now has an official tow package, a US-spec official ECU is available straight from Tesla that is plug and play with the older Model 3s as well. As of writing (April 2026), you can buy the ECU and the 4-pin connector from Tesla for about $100.
+
+ECU: `1112581-00-A`
+Harness: `1446560-00-A`
+
+If you want to build your own for some reason, for example you don't want the car to disable anything when you attach a trailer, then this repository may still have value for you. If you just want your trailer lights to work with an aftermarket hitch, just buy those parts from Tesla directly.
 
 ## Working Prototype
 
 There is a working prototype with design files available in the [prototype.md](/docs/prototype.md) doc. Code for the prototype is available in the `/src/phase1` folder.
 
-![Prototype Image](/docs/images/prototype/prototype2.jpg)
+![Prototype Image](/docs/images/prototype2/opened.jpeg)
 
 ## Motivation
 
 Currently it is difficult or impossible to find documentation of how to interface with the Tesla trailer wiring to get a standard 4-pin connector. In Europe, the "gray connector" (as it's often referred to online, see [teslamotorsclub forum](https://teslamotorsclub.com/tmc/threads/model-3-tow-hitch-installation-ecohitch-and-near-factory-wiring.323758/)) connects to the Trailer Control Unit which interprets the signals from the vehicle's computer and adapts to the standard [European 13 pin connector](https://en.wikipedia.org/wiki/ISO_standards_for_trailer_connectors#13-pin_trailer_connector_(ISO_11446)). In the US the controller is missing but the wiring up to it is present (as of 2019), terminating in the gray connector with id `X041` in the Tesla service manual.
 
-I have seen reports that you can use the OEM trailer control module for a Tesla Model Y with the Model 3, to get the US 7-pin connector, part number `1764896-98-D`. Used on ebay they look to run about $300 USD but provide an OEM route for this functionality. This alone does not enable the trailer mode in the software, but there are ways to do that with the Tesla Toolbox software.
+~~I have seen reports that you can use the OEM trailer control module for a Tesla Model Y with the Model 3, to get the US 7-pin connector, part number `1764896-98-D`. Used on ebay they look to run about $300 USD but provide an OEM route for this functionality.~~ (See above, there is an official US Model 3 part for this now.) This alone does not enable the trailer mode in the software, but there are ways to do that with the Tesla Toolbox software.
 
 There is an existing third-party module available online which goes by the part number `TM3-TDW06-US` which does precisely what this project aims to do. I cannot speak to the quality of the product, but it retails for about $400 USD and as far as I can tell the hardware and software are not open-source.
 
