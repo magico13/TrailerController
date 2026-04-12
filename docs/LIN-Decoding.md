@@ -28,6 +28,8 @@ The circuit diagram for the reader is below, basically just a voltage divider us
 
 ![Circuit diagram](./images/reader_circuit.svg)
 
+Alternatively, use a dedicated USB signal analyzer, which is what I ended up doing later, using the PulseView software for Linux. For reference, 100kHz sampling rate seemed to work fine, which is about 5x the data rate.
+
 ## LIN Information
 
 There are some basic settings for the LIN bus that seems to be common between at least the LIN bus for the trailer and the inductive charger:
@@ -129,17 +131,62 @@ REVERSE - MOVING
 
 - 0x24
 
-#### 0x10
+#### 0x10 - Data from ECU to Car?
 
 - ID: 0x10
 - PID: 0x50
-- No data, expecting response
+- Without ECU: No data, expecting response
+- With ECU:
+  - Park, no connection: 5 bytes
+    - 0x00
+    - 0x00
+    - 0x2C
+    - 0x01
+    - 0x00
+    - Checksum: 0x82
+  - Park, connected: 5 bytes
+    - 0x49 = `10010010` could be state of each light test, 7 pin would have five or six, 4 pin should only have 3.
+    - 0x00
+    - 0x2C
+    - 0x01
+    - 0x00
+    - Checksum: 0x39
+  - Park, only tail lights:
+    - 0x81 = `10000001`
+    - others unchanged
+  - Park, only LT:
+    - 0x08 = `0010000`
+    - 0x00
+    - 0x30 <- different!
+    - 0x01
+    - 0x00
+    - Weirdly, the car indicates the left is out and the right is fine (fast left blinks, normal rights)
+  - Park, only RT
+    - 0x40 = `00000010`
+    - 0x00
+    - 0x30
+    - 0x01
+    - 0x00
+    - Car indicates both left and right are in error.
+
+  Uh oh, testing with my light tester shows that either the harness is wired wrong or there's a bug in the ECU code because the RT light is tied to the headlights, LT light is tied to RT, and Tail lights is tied to LT. That's a huge issue for using the existing ECU, I will need to investigate further.
 
 #### 0x11
 
 - ID: 0x11
 - PID: 0x11
-- No data, expecting response
+- Without ECU: No data, expecting response
+- With ECU:
+  - Park, connected or not: 8 bytes
+    - 0x01
+    - 0x00
+    - 0x00
+    - 0x00
+    - 0x00
+    - 0x00
+    - 0x00
+    - 0x00
+  - Checksum: 0xED
 
 #### 0x13
 
@@ -180,6 +227,7 @@ Driver IC Charging
 
 - The first byte changes from 2 to 3, to 8, 9, and then 0x0A when a device is placed on the driver's side charger, but not the passenger side.
 
+0x01 is disabled?,
 0x02 is idle,
 0x03 is testing for a device,
 0x08 and 0x09 seem to be preparing,
@@ -201,3 +249,20 @@ The second byte seems to also be a state identifier: 0 for no device, 1 for pres
   - 0x88
   - 0xFE
 - Checksum: 0xFA
+
+#### 0x2C
+
+Note: I only saw this for the first time after installing the ECU, but a lot of time passed between the first data I captured and then, so I do not know when this was added.
+
+- ID: 0x2C
+- PID: 0xEC
+- Data: 8 bytes
+  - 0x03
+  - 0x00
+  - 0x00
+  - 0x00
+  - 0x00
+  - 0x00
+  - 0x00
+  - 0x00
+- Checksum: 0x10

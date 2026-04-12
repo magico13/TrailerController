@@ -17,6 +17,8 @@ Harness: `1446560-00-A`
 
 If you want to build your own for some reason, for example you don't want the car to disable anything when you attach a trailer, then this repository may still have value for you. If you just want your trailer lights to work with an aftermarket hitch, just buy those parts from Tesla directly.
 
+Update: Either I got a bad wiring harness or there's something different with the communication between my older car and the newer ones that those parts are for, because my lighting appears to be out of order. Headlights control one of the turn signals, one turn signal signals the other, and the other turn signal control the tail lights. It seems like I can either swap the wires around myself, or make an adapter that plugs in and remaps them. Be warned that using those parts might result in the same issue for you!
+
 ## Working Prototype
 
 There is a working prototype with design files available in the [prototype.md](/docs/prototype.md) doc. Code for the prototype is available in the `/src/phase1` folder.
