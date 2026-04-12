@@ -131,7 +131,7 @@ REVERSE - MOVING
 
 - 0x24
 
-#### 0x10 - Data from ECU to Car?
+#### 0x10 - Data from ECU to Car
 
 - ID: 0x10
 - PID: 0x50
@@ -140,38 +140,66 @@ REVERSE - MOVING
   - Park, no connection: 5 bytes
     - 0x00
     - 0x00
-    - 0x2C
+    - 0x2C = `00101100`
     - 0x01
     - 0x00
     - Checksum: 0x82
   - Park, connected: 5 bytes
-    - 0x49 = `10010010` could be state of each light test, 7 pin would have five or six, 4 pin should only have 3.
+    - 0x49 = `10010010` determined to be left test/status/unknown, right test/status/unknown, tail test/status.
     - 0x00
-    - 0x2C
+    - 0x2C = `00101100`
     - 0x01
     - 0x00
     - Checksum: 0x39
-  - Park, only tail lights:
+  - Park, only tail lights (car thinks left turn):
     - 0x81 = `10000001`
     - others unchanged
-  - Park, only LT:
+  - Park, only LT (car thinks right turn):
     - 0x08 = `0010000`
     - 0x00
-    - 0x30 <- different!
+    - 0x30 = `00001100` <- different!
     - 0x01
     - 0x00
     - Weirdly, the car indicates the left is out and the right is fine (fast left blinks, normal rights)
-  - Park, only RT
+  - Park, only RT (car thinks tail lights):
     - 0x40 = `00000010`
     - 0x00
-    - 0x30
+    - 0x30 = `00001100`
     - 0x01
     - 0x00
     - Car indicates both left and right are in error.
 
   Uh oh, testing with my light tester shows that either the harness is wired wrong or there's a bug in the ECU code because the RT light is tied to the headlights, LT light is tied to RT, and Tail lights is tied to LT. That's a huge issue for using the existing ECU, I will need to investigate further.
 
-#### 0x11
+  - Reverse, fully connected, brakes active
+    - 0x5B = `11011010` - left good, left active, right good, right active, tail good, tail off
+    - 0x04 = `00100000`
+    - 0x51 = `10001010` - first bit seems to be "reverse" but otherwise I don't see a consistent pattern
+    - 0x01 = `10000000`
+    - 0x00
+
+  - Drive, connected, free rolling:
+    - 0x49 = `10010010`
+    - 0x00
+    - 0x50 = `00001010`
+    - 0x01
+    - 0x00
+
+  - Drive, connected, headlights on, free rolling:
+    - 0xC9 = `10010011` - left/right good, tail good, tail active
+    - 0x00
+    - 0x50 = `00001010`
+    - 0x01
+    - 0x00
+  
+  - Drive, connected, brakes on:
+    - 0x5B = `11011010`
+    - 0x04 = `00100000` definitely seems brakes related
+    - 0x50 = `00001010`
+    - 0x01
+    - 0x00
+
+#### 0x11 - Unsure, comes from trailer ECU
 
 - ID: 0x11
 - PID: 0x11
@@ -186,7 +214,19 @@ REVERSE - MOVING
     - 0x00
     - 0x00
     - 0x00
-  - Checksum: 0xED
+    - Checksum: 0xED
+  - Drive, brakes active, right turn signal
+    - 0x86 = `01100001`
+    - 0x03 = `11000000`
+    - rest 0x00
+  - Drive, headlights on, rolling
+    - 0x02 = `01000000`
+    - 0x01 = `10000000`
+    - rest 0x00
+  - Drive, brakes (and also Reverse, brakes)
+    - 0x86 = `01100001`
+    - 0x85 = `10100001`
+    - rest 0x00
 
 #### 0x13
 
